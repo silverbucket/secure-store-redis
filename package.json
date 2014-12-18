@@ -1,0 +1,42 @@
+{
+  "name": "secure-store-redis ",
+  "version": "0.0.1",
+  "description": "A simple wrapper to encrypt and decrypt data stored in redis",
+  "license": "MIT",
+  "private": false,
+  "keywords": [
+    "redis",
+    "secure",
+    "store",
+    "encrypt",
+    "decrypt",
+    "client",
+    "database"
+  ],
+  "author": {
+    "name": "Nick Jennings",
+    "email": "nick@silverbucket.net"
+  },
+  "main": "./index.js",
+  "scripts": {
+    "test": "node_modules/.bin/jaribu"
+  },
+  "dependencies": {
+    "dead-simple-crypt": "0.0.1",
+    "hiredis": "^0.1.17",
+    "redis": "^0.12.1",
+    "redis-connection-pool": "^1.0.0"
+  },
+  "devDependencies": {
+    "jaribu": "^0.2.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/silverbucket/secure-store-redis.git"
+  },
+  "readmeFilename": "README.md",
+  "bugs": {
+    "url": "https://github.com/silverbucekt/secure-store-redis/issues"
+  },
+  "homepage": "https://github.com/silverbucket/secure-store-redis"
+}
