@@ -7,7 +7,7 @@ A simple wrapper to encrypt and decrypt data stored in redis. The main point is 
 var SecureStore = require('secure-store-redis');
 
 var store = new SecureStore({
-    prefix: 'myApp:store',
+    namespace: 'myApp:store',
     secret: 'quacks like a duck',
     redis: { // standard redis config object
         host: "127.0.0.1",
@@ -15,10 +15,19 @@ var store = new SecureStore({
     }
 });
 
-store.save('quote', 'i see dead people');
+store.save('quote', 'i see dead people', function (err, reply) {
+    //...
+    store.get('quote', function (err, reply) {
+        // err: null
+        // reply: 'i see dead people'
+    });
+    store.get('quote', function (err, reply) {
+        // err: record not found
+        // reply: undefined
+    });
+});
 
-store.get('quote'); // returns 'i see dead people'
-store.get('blahblah'); // return undefined
+
 
 var otherStore = new SecureStore({
     prefix: 'myApp:store',
@@ -29,5 +38,8 @@ var otherStore = new SecureStore({
     }
 });
 
-store.get('quote'); // returns undefined
+otherStore.get('quote', function (err, reply) {
+        // err: record not found
+        // reply: undefined
+    });
 ```
