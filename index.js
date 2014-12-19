@@ -37,9 +37,17 @@ SecureStore.prototype.save = function (postfix, key, data, cb) {
   assert(typeof key === 'string', 'no hash key specified');
   assert(typeof data !== 'undefined', 'no data to save provided');
 
-  var encData = dsCrypt.encrypt(JSON.stringify(data), this.secret);
+  if (typeof data === 'object') {
+    try {
+      data = JSON.stringify(data);
+    } catch (e) {
+      throw new Error(e);
+    }
+  }
 
-  this.pool.hset(this.namespace + postfix, shasum(key), encData, function (err, reply) {
+  data = dsCrypt.encrypt(data, this.secret);
+
+  this.pool.hset(this.namespace + postfix, shasum(key), data, function (err, reply) {
     cb(err, reply);
   });
 };
@@ -63,7 +71,20 @@ SecureStore.prototype.get = function (postfix, key, cb) {
     } else if (typeof reply !== 'string') {
        cb('record not found');
     } else {
-      cb(null, JSON.parse(dsCrypt.decrypt(reply, self.secret)));
+
+      var data;
+
+      try {
+        data = dsCrypt.decrypt(reply, self.secret);
+      } catch (e) {
+        return cb('unable to decrypt');
+      }
+
+      try {
+        data = JSON.parse(data);
+      } catch (e) {}
+
+      cb(null, data);
     }
   });
 };
