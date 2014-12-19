@@ -1,6 +1,6 @@
 {
   "name": "secure-store-redis ",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A simple wrapper to encrypt and decrypt data stored in redis",
   "license": "MIT",
   "private": false,
@@ -23,8 +23,6 @@
   },
   "dependencies": {
     "dead-simple-crypt": "0.0.1",
-    "hiredis": "^0.1.17",
-    "redis": "^0.12.1",
     "redis-connection-pool": "^1.0.0"
   },
   "devDependencies": {
