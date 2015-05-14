@@ -69,7 +69,7 @@ SecureStore.prototype.get = function (postfix, key, cb) {
     if (err) {
       cb(err);
     } else if (typeof reply !== 'string') {
-       cb('record not found');
+       cb('record not found for key: ' + key);
     } else {
 
       var data;
