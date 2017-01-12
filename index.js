@@ -9,7 +9,6 @@ function shasum(text) {
   return s.digest('hex');
 }
 
-
 function SecureStore(cfg) {
   assert(typeof cfg.secret === 'string', 'secret must be specified');
   this.namespace = cfg.namespace || 'secure-store-redis';
