@@ -5,7 +5,7 @@ function getTests() {
       run: function (env, test) {
         env.mod.get('blahblah', function (err, data) {
           test.assertTypeAnd(data, 'undefined');
-          test.assert(err, 'record not found');
+          test.assert(err, 'record not found for key: blahblah');
         });
       }
     },
@@ -138,3 +138,4 @@ define(['require'], function (require) {
     tests: getTests(),
   }];
 });
+
