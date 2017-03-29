@@ -14,6 +14,8 @@ function SecureStore(cfg) {
   this.namespace = cfg.namespace || 'secure-store-redis';
   this.secret = cfg.secret;
 
+  this.errorOnNotFound = cfg.errorOnNotFound || true;
+
   if (! cfg.redis) { cfg.redis = {}; }
   //this.db   = cfg.db || 0;
 
@@ -71,7 +73,11 @@ SecureStore.prototype.get = function (postfix, key, cb) {
     if (err) {
       cb(err);
     } else if (typeof reply !== 'string') {
-       cb('record not found for key: ' + key);
+      if (this.errorOnNotFound) {
+        return cb('record not found for key: ' + key);
+      } else {
+        return cb(null, null);
+      }
     } else {
 
       var data;
