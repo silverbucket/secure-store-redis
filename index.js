@@ -21,7 +21,10 @@ function SecureStore(cfg) {
 
   this.pool = RCP(this.namespace, {
     host: cfg.redis.host || 'localhost',
-    port: cfg.redis.port || 6379
+    port: cfg.redis.port || 6379,
+    max_clients: cfg.redis.max_clients || 30,
+    database: cfg.redis.database || 0,
+    options: cfg.redis.options || null
   });
 }
 

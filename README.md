@@ -10,10 +10,15 @@ var store = new SecureStore({
     namespace: 'myApp:store',
     secret: 'quacks like a duck',
     errorOnNotFound: true, //optional; will cb error if data can't be found
-    redis: { // standard redis config object
-        host: "127.0.0.1",
-        port: 6379
-    }
+    redis: {
+      host: 'localhost', // optional
+      port: 6379, // optional
+      max_clients: 30, // optional
+      database: 0, // optional
+      options: {
+        auth_pass: 'password'
+      } //options for createClient of node-redis, optional
+    }    
 });
 
 store.save('quote', 'i see dead people', function (err, reply) {
