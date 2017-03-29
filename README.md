@@ -9,6 +9,7 @@ var SecureStore = require('secure-store-redis');
 var store = new SecureStore({
     namespace: 'myApp:store',
     secret: 'quacks like a duck',
+    errorOnNotFound: true, //optional; will cb error if data can't be found
     redis: { // standard redis config object
         host: "127.0.0.1",
         port: 6379
