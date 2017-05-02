@@ -19,13 +19,20 @@ function SecureStore(cfg) {
   if (! cfg.redis) { cfg.redis = {}; }
   //this.db   = cfg.db || 0;
 
-  this.pool = RCP(this.namespace, {
-    host: cfg.redis.host || 'localhost',
-    port: cfg.redis.port || 6379,
+  var rcpConfig = {
     max_clients: cfg.redis.max_clients || 30,
     database: cfg.redis.database || 0,
     options: cfg.redis.options || null
-  });
+  };
+
+  if (cfg.redis.url) {
+    rcpConfig.url = cfg.redis.url;
+  } else {
+    rcpConfig.host = cfg.redis.host || 'localhost';
+    rcpConfig.port = cfg.redis.port || 6379;
+  }
+
+  this.pool = RCP(this.namespace, rcpConfig);
 }
 
 SecureStore.prototype.save = function (postfix, key, data, cb) {

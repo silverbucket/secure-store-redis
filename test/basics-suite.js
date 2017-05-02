@@ -136,6 +136,25 @@ define(['require'], function (require) {
       test.assertType(env.mod.save, 'function');
     },
     tests: getTests(),
+  },
+  {
+    desc: "basic tests again (redis url)",
+    abortOnFail: true,
+    setup: function (env, test) {
+      env.Mod = require('./../index');
+      test.assertTypeAnd(env.Mod, 'function');
+      env.mod = new env.Mod({
+        namespace: 'secure-store-redis-tests',
+        secret: 'sssh dont say nuthin!',
+        redis: {
+          url: '127.0.0.1:6379'
+        }
+      });
+      test.assertTypeAnd(env.mod, 'object');
+      test.assertTypeAnd(env.mod.get, 'function');
+      test.assertType(env.mod.save, 'function');
+    },
+    tests: getTests(),
   }];
 });
 

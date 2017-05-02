@@ -13,12 +13,14 @@ var store = new SecureStore({
     redis: {
       host: 'localhost', // optional
       port: 6379, // optional
+      // optionally use the 'url' property to specify entire redis connect string
+      // url: 'redis://localhost:6379',
       max_clients: 30, // optional
       database: 0, // optional
       options: {
         auth_pass: 'password'
       } //options for createClient of node-redis, optional
-    }    
+    }
 });
 
 store.save('quote', 'i see dead people', function (err, reply) {
