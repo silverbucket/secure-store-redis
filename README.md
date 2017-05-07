@@ -1,5 +1,7 @@
 # secure-store-redis
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/silverbucket/secure-store-redis.svg)](https://greenkeeper.io/)
+
 A simple wrapper to encrypt and decrypt data stored in redis. The main point is to ensure that any data you store in redis cannot be accessed by anyone else outside of the process, without the key.
 
 
