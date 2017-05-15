@@ -104,4 +104,17 @@ SecureStore.prototype.get = function (postfix, key, cb) {
   });
 };
 
+SecureStore.prototype.delete = function (postfix, key, cb) {
+  if (typeof cb !== 'function') {
+    assert(typeof key === 'function', 'must specify a callback');
+    cb = key;
+    key = postfix;
+    postfix = '';
+  } else {
+    postfix = ':' + postfix;
+  }
+  assert(typeof key === 'string', 'no hash key specified');
+  this.pool.hdel(this.namespace + postfix, shasum(key), cb);
+};
+
 module.exports = SecureStore;
