@@ -35,6 +35,10 @@ store.save('quote', 'i see dead people', function (err, reply) {
     });
 });
 
+store.delete('quote', function (err, reply) {
+  // err: null
+  // reply: 1
+});
 
 
 var otherStore = new SecureStore({
