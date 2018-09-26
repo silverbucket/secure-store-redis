@@ -7,7 +7,6 @@ const RCP     = require('redis-connection-pool'),
 
 const helpers = {
   encrypt: function (data, secret) {
-    console.log('KEY: ' + secret + ' ' + secret.length);
     const iv = crypto.randomBytes(IV_LENGTH);
     const cipher = crypto.createCipheriv(ALGORITHM, new Buffer.from(secret), iv);
     let encrypted = cipher.update(data);
@@ -34,7 +33,8 @@ const helpers = {
 
 function SecureStore(cfg) {
   assert(typeof cfg.secret === 'string', 'secret must be specified (32 chars)');
-  assert(typeof cfg.secret.length === 32, `secret must be 32 chars (is ${secret.length}`);
+  assert(typeof cfg.secret.length !== 32, `secret must be 32 chars, actually 
+         ${cfg.secret.length}`);
   this.namespace = cfg.namespace || 'secure-store-redis';
   this.secret = cfg.secret;
 
