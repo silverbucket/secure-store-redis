@@ -1,16 +1,40 @@
-var RCP     = require('redis-connection-pool'),
-    assert  = require('assert'),
-    crypto  = require('crypto'),
-    dsCrypt = require('dead-simple-crypt');
+const RCP     = require('redis-connection-pool'),
+      assert  = require('assert'),
+      crypto  = require('crypto'),
+      ALGORITHM = 'aes-256-cbc',
+      IV_LENGTH = 16; // For AES, this is always 16
 
-function shasum(text) {
-  var s = crypto.createHash('sha256');
-  s.update(text);
-  return s.digest('hex');
-}
+
+const helpers = {
+  encrypt: function (data, secret) {
+    console.log('KEY: ' + secret + ' ' + secret.length);
+    const iv = crypto.randomBytes(IV_LENGTH);
+    const cipher = crypto.createCipheriv(ALGORITHM, new Buffer.from(secret), iv);
+    let encrypted = cipher.update(data);
+
+    encrypted = Buffer.concat([encrypted, cipher.final()]);
+    return iv.toString('hex') + ':' + encrypted.toString('hex');
+  },
+  decrypt: function (string, secret) {
+    let parts = string.split(':');
+    const iv = new Buffer.from(parts.shift(), 'hex');
+    const encryptedText = new Buffer.from(parts.join(':'), 'hex');
+    const decipher = crypto.createDecipheriv(ALGORITHM, new Buffer.from(secret), iv);
+    let decrypted = decipher.update(encryptedText);
+
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString();
+  },
+  shasum: function (text) {
+    const s = crypto.createHash('sha256');
+    s.update(text);
+    return s.digest('hex');
+  }
+};
 
 function SecureStore(cfg) {
-  assert(typeof cfg.secret === 'string', 'secret must be specified');
+  assert(typeof cfg.secret === 'string', 'secret must be specified (32 chars)');
+  assert(typeof cfg.secret.length === 32, `secret must be 32 chars (is ${secret.length}`);
   this.namespace = cfg.namespace || 'secure-store-redis';
   this.secret = cfg.secret;
 
@@ -19,7 +43,7 @@ function SecureStore(cfg) {
   if (! cfg.redis) { cfg.redis = {}; }
   //this.db   = cfg.db || 0;
 
-  var rcpConfig = {
+  let rcpConfig = {
     max_clients: cfg.redis.max_clients || 30,
     database: cfg.redis.database || 0,
     options: cfg.redis.options || null
@@ -32,7 +56,7 @@ function SecureStore(cfg) {
     rcpConfig.port = cfg.redis.port || 6379;
   }
 
-  this.pool = RCP(this.namespace, rcpConfig);
+  this.pool = new RCP(this.namespace, rcpConfig);
 }
 
 SecureStore.prototype.save = function (postfix, key, data, cb) {
@@ -56,11 +80,9 @@ SecureStore.prototype.save = function (postfix, key, data, cb) {
     }
   }
 
-  data = dsCrypt.encrypt(data, this.secret);
+  data = helpers.encrypt(data, this.secret);
 
-  this.pool.hset(this.namespace + postfix, shasum(key), data, function (err, reply) {
-    cb(err, reply);
-  });
+  this.pool.hset(this.namespace + postfix, helpers.shasum(key), data, cb);
 };
 
 SecureStore.prototype.get = function (postfix, key, cb) {
@@ -74,23 +96,21 @@ SecureStore.prototype.get = function (postfix, key, cb) {
   }
   assert(typeof key === 'string', 'no hash key specified');
 
-  var self = this;
-
-  this.pool.hget(this.namespace + postfix, shasum(key), function (err, reply) {
+  this.pool.hget(this.namespace + postfix, helpers.shasum(key), (err, reply) => {
     if (err) {
       cb(err);
     } else if (typeof reply !== 'string') {
-      if (self.errorOnNotFound) {
+      if (this.errorOnNotFound) {
         return cb('record not found for key: ' + key);
       } else {
         return cb(null, null);
       }
     } else {
 
-      var data;
+      let data;
 
       try {
-        data = dsCrypt.decrypt(reply, self.secret);
+        data = helpers.decrypt(reply, this.secret);
       } catch (e) {
         return cb('unable to decrypt');
       }

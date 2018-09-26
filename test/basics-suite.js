@@ -13,7 +13,7 @@ function getTests() {
     {
       desc: '# save string',
       run: function (env, test) {
-        env.mod.save('foo', 'hallo', function (err, data) {
+        env.mod.save('foo', 'hallo', function (err) {
           test.assert(err, null);
         });
       }
@@ -33,7 +33,7 @@ function getTests() {
     {
       desc: '# save object',
       run: function (env, test) {
-        env.mod.save('foo', { bar: 'baz', wang: 'bang' }, function (err, data) {
+        env.mod.save('foo', { bar: 'baz', wang: 'bang' }, function (err) {
           test.assert(err, null);
         });
       }
@@ -55,7 +55,7 @@ function getTests() {
       run: function (env, test) {
         env.mod2 = new env.Mod({
           namespace: 'secure-store-redis-tests',
-          secret: 'i dont know the key :(',
+          secret: 'idontknowthekeyidontknowthekey12',
           redis: {
             host: '127.0.0.1',
             port: 6379
@@ -114,18 +114,18 @@ function getTests() {
 }
 
 if (typeof define !== 'function') {
-  var define = require('amdefine')(module);
+  let define = require('amdefine')(module);
 }
 define(['require'], function (require) {
   return [{
-    desc: "basic tests",
+    desc: 'basic tests',
     abortOnFail: true,
     setup: function (env, test) {
       env.Mod = require('./../index');
       test.assertTypeAnd(env.Mod, 'function');
       env.mod = new env.Mod({
         namespace: 'secure-store-redis-tests',
-        secret: 'sssh dont say nuthin!',
+        secret: '823HD8DG26JA0LK1239Hgb651TWfs0j1',
         redis: {
           host: '127.0.0.1',
           port: 6379
@@ -138,14 +138,14 @@ define(['require'], function (require) {
     tests: getTests(),
   },
   {
-    desc: "basic tests again (redis url)",
+    desc: 'basic tests again (redis url)',
     abortOnFail: true,
     setup: function (env, test) {
       env.Mod = require('./../index');
       test.assertTypeAnd(env.Mod, 'function');
       env.mod = new env.Mod({
         namespace: 'secure-store-redis-tests',
-        secret: 'sssh dont say nuthin!',
+        secret: '823HD8DG26JA0LK1239Hgb651TWfs0j1',
         redis: {
           url: '127.0.0.1:6379'
         }

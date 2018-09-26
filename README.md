@@ -8,7 +8,7 @@ var SecureStore = require('secure-store-redis');
 
 var store = new SecureStore({
     namespace: 'myApp:store',
-    secret: 'quacks like a duck',
+    secret: '823HD8DG26JA0LK1239Hgb651TWfs0j1', // must be 32 char secret
     errorOnNotFound: true, //optional; will cb error if data can't be found
     redis: {
       host: 'localhost', // optional
