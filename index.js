@@ -7,6 +7,9 @@ const RCP     = require('redis-connection-pool'),
 
 const helpers = {
   encrypt: function (data, secret) {
+    if (secret.length > 32) {
+      throw new Error(`secret length must be 32 characters, it's ${secret.length}`);
+    }
     const iv = crypto.randomBytes(IV_LENGTH);
     const cipher = crypto.createCipheriv(ALGORITHM, new Buffer.from(secret), iv);
     let encrypted = cipher.update(data);
@@ -15,6 +18,9 @@ const helpers = {
     return iv.toString('hex') + ':' + encrypted.toString('hex');
   },
   decrypt: function (string, secret) {
+    if (secret.length > 32) {
+      throw new Error(`secret length must be 32 characters, it's ${secret.length}`);
+    }
     let parts = string.split(':');
     const iv = new Buffer.from(parts.shift(), 'hex');
     const encryptedText = new Buffer.from(parts.join(':'), 'hex');
@@ -33,7 +39,7 @@ const helpers = {
 
 function SecureStore(cfg) {
   assert(typeof cfg.secret === 'string', 'secret must be specified (32 chars)');
-  assert(typeof cfg.secret.length !== 32, `secret must be 32 chars, actually 
+  assert(typeof cfg.secret.length !== 32, `secret must be 32 chars, actually
          ${cfg.secret.length}`);
   this.namespace = cfg.namespace || 'secure-store-redis';
   this.secret = cfg.secret;
