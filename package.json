@@ -1,6 +1,6 @@
 {
   "name": "secure-store-redis",
-  "version": "1.4.4",
+  "version": "1.4.5",
   "description": "A simple wrapper to encrypt and decrypt data stored in redis",
   "license": "MIT",
   "private": false,
@@ -22,10 +22,10 @@
     "test": "node_modules/.bin/jaribu"
   },
   "dependencies": {
-    "redis-connection-pool": "^1.7.1"
+    "redis-connection-pool": "1.7.3"
   },
   "devDependencies": {
-    "jaribu": "2.2.1"
+    "jaribu": "2.2.3"
   },
   "repository": {
     "type": "git",
