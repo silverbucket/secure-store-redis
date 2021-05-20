@@ -22,7 +22,7 @@
     "test": "node_modules/.bin/jaribu"
   },
   "dependencies": {
-    "redis-connection-pool": "1.7.3"
+    "redis-connection-pool": "^1.7.4"
   },
   "devDependencies": {
     "jaribu": "2.2.3"
