@@ -1,7 +1,7 @@
 {
   "name": "secure-store-redis",
-  "version": "1.4.7",
-  "description": "A simple wrapper to encrypt and decrypt data stored in redis",
+  "version": "2.0.0",
+  "description": "A simple wrapper to encrypt and decrypt data stored in Redis",
   "license": "MIT",
   "private": false,
   "keywords": [
@@ -17,15 +17,26 @@
     "name": "Nick Jennings",
     "email": "nick@silverbucket.net"
   },
-  "main": "./index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/",
+    "src/"
+  ],
   "scripts": {
-    "test": "node_modules/.bin/jaribu"
+    "test": "npm run build && jaribu",
+    "build": "tsc"
   },
   "dependencies": {
-    "redis-connection-pool": "^1.7.4"
+    "redis-connection-pool": "^2.0.1"
   },
   "devDependencies": {
-    "jaribu": "2.2.3"
+    "@types/eslint": "^8.4.1",
+    "@types/node": "^17.0.23",
+    "@typescript-eslint/parser": "^5.16.0",
+    "eslint": "^8.11.0",
+    "jaribu": "2.2.3",
+    "typescript": "^4.6.2"
   },
   "repository": {
     "type": "git",
