@@ -13,10 +13,12 @@ backwards incompatible with `1.x`
 const SecureStore = require('secure-store-redis').default;
 
 const store = new SecureStore('myApp:store', '823HD8DG26JA0LK1239Hgb651TWfs0j1', {
-  host: 'localhost', // optional
-  port: 6379, // optional
-  // optionally use the 'url' property to specify entire redis connect string
-  // url: 'redis://localhost:6379',
+  redis: {
+    host: 'localhost',
+    port: 6379, // optional
+    // optionally use the 'url' property to specify entire redis connect string
+    // url: 'redis://localhost:6379',
+  } // optional
 });
 await store.init();
 
