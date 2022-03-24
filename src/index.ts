@@ -4,14 +4,17 @@ import {randomBytes, createCipheriv, createDecipheriv, createHash} from 'crypto'
 const ALGORITHM = 'aes-256-cbc',
       IV_LENGTH = 16;
 
+interface SecureStoreConfig {
+  redis?: any;
+  redisConnectionPool?: RedisConnectionPoolConfig;
+}
+
 export default class SecureStore {
   uid: string;
   secret: string;
-  redisConfig: any;
-  rcpConfig: RedisConnectionPoolConfig;
   private pool: RedisConnectionPool;
 
-  constructor(uid: string, secret: string, redisConfig?: any, rcpConfig?: RedisConnectionPoolConfig) {
+  constructor(uid: string, secret: string, cfg: SecureStoreConfig = {}) {
     if (typeof uid !== 'string') {
       throw new Error('A uid must be specified');
     } else if (typeof secret !== 'string') {
@@ -21,9 +24,12 @@ export default class SecureStore {
     }
     this.uid = uid;
     this.secret = secret;
-    this.redisConfig = redisConfig || {};
-    this.rcpConfig = rcpConfig || {};
-    this.pool = redisConnectionPoolFactory(this.uid, this.rcpConfig, this.redisConfig);
+    const redis = cfg.redis || {};
+    const redisConnectionPoolConfig = cfg.redisConnectionPool || {};
+    if (redis) {
+      redisConnectionPoolConfig.redis = redis;
+    }
+    this.pool = redisConnectionPoolFactory(this.uid, redisConnectionPoolConfig);
   }
 
   async init() {

@@ -1,6 +1,6 @@
 {
   "name": "secure-store-redis",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "A simple wrapper to encrypt and decrypt data stored in Redis",
   "license": "MIT",
   "private": false,
@@ -28,7 +28,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "redis-connection-pool": "^2.0.1"
+    "redis-connection-pool": "^2.0.2"
   },
   "devDependencies": {
     "@types/eslint": "8.4.1",
