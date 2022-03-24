@@ -11,7 +11,7 @@ export default class SecureStore {
   rcpConfig: RedisConnectionPoolConfig;
   private pool: RedisConnectionPool;
 
-  constructor(uid: string, secret: string, redisConfig: any, rcpConfig: RedisConnectionPoolConfig) {
+  constructor(uid: string, secret: string, redisConfig?: any, rcpConfig?: RedisConnectionPoolConfig) {
     if (typeof uid !== 'string') {
       throw new Error('A uid must be specified');
     } else if (typeof secret !== 'string') {
