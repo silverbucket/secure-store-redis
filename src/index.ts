@@ -1,4 +1,6 @@
-import redisConnectionPoolFactory, {RedisConnectionPool, RedisConnectionPoolConfig} from "redis-connection-pool";
+import redisConnectionPoolFactory, {
+  RedisConnectionPool, RedisConnectionPoolConfig
+} from "redis-connection-pool";
 import {randomBytes, createCipheriv, createDecipheriv, createHash} from 'crypto';
 
 const ALGORITHM = 'aes-256-cbc',
@@ -13,6 +15,7 @@ export default class SecureStore {
   uid: string;
   secret: string;
   private pool: RedisConnectionPool;
+  private config: object;
 
   constructor(uid: string, secret: string, cfg: SecureStoreConfig = {}) {
     if (typeof uid !== 'string') {
@@ -29,31 +32,32 @@ export default class SecureStore {
     if (redis) {
       redisConnectionPoolConfig.redis = redis;
     }
-    this.pool = redisConnectionPoolFactory(this.uid, redisConnectionPoolConfig);
+    this.config = redisConnectionPoolConfig;
   }
 
   async init() {
+    this.pool = await redisConnectionPoolFactory(this.uid, this.config);
     await this.pool.init();
   }
 
-  async save(key: string, data: any, postfix: string = '') {
+  async save(key: string, data: never, postfix: string = '') {
     if (typeof key !== 'string') {
       throw new Error('No hash key specified');
     } else if (!data) {
-      throw new Error('No data provided, nothing to save')
+      throw new Error('No data provided, nothing to save');
     }
     postfix = postfix ? ':' + postfix : '';
 
     if (typeof data === 'object') {
       try {
-        data = JSON.stringify(data);
+        data = JSON.stringify(data) as never;
       } catch (e) {
         throw new Error(e);
       }
     }
 
-    data = this.encrypt(data);
-    const hash = SecureStore.shasum(key)
+    data = this.encrypt(data) as never;
+    const hash = SecureStore.shasum(key);
     return await this.pool.hset(this.uid + postfix, hash, data);
   }
 
@@ -63,31 +67,32 @@ export default class SecureStore {
     }
     postfix = postfix ? ':' + postfix : '';
 
-    const hash = SecureStore.shasum(key)
+    const hash = SecureStore.shasum(key);
     const res = await this.pool.hget(this.uid + postfix, hash);
     let data;
     if (typeof res === 'string') {
-        try {
-          data = this.decrypt(res);
-        } catch (e) {
-          throw new Error(e);
-        }
+      try {
+        data = this.decrypt(res);
+      } catch (e) {
+        throw new Error(e);
+      }
 
-        try {
-          data = JSON.parse(data);
-        } catch (e) {}
+      try {
+        data = JSON.parse(data);
+      } catch (e) {}
     } else {
       data = res;
     }
     return data;
   }
 
-  async delete(key: string, postfix: string = '') {
+  async delete(key: string, postfix = '') {
     if (typeof key !== 'string') {
       throw new Error('No hash key specified');
     }
     postfix = postfix ? ':' + postfix : '';
-    const hash = SecureStore.shasum(key)
+    const hash = SecureStore.shasum(key);
+    // @ts-ignore
     return await this.pool.hdel(this.uid + postfix, hash);
   };
 

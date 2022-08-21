@@ -80,7 +80,7 @@ function getTests() {
             }
           }
         };
-        await env.mod2.save('complex', env.complexObj)
+        await env.mod2.save('complex', env.complexObj);
         test.done();
       }
     },
@@ -105,9 +105,9 @@ define(['require'], function (require) {
     desc: 'basic tests',
     abortOnFail: true,
     setup: async function (env, test) {
-      env.Mod = require('./../dist/index').default
+      env.Mod = require('./../dist/index').default;
       test.assertTypeAnd(env.Mod, 'function');
-      env.mod = new env.Mod('secure-store-redis-tests', '823HD8DG26JA0LK1239Hgb651TWfs0j1',{
+      env.mod = new env.Mod('secure-store-redis-tests', '823HD8DG26JA0LK1239Hgb651TWfs0j1', {
         host: '127.0.0.1',
         port: 6379
       });
@@ -124,7 +124,7 @@ define(['require'], function (require) {
     setup: async function (env, test) {
       env.Mod = require('./../dist/index').default;
       test.assertTypeAnd(env.Mod, 'function');
-      env.mod = new env.Mod('secure-store-redis-tests','823HD8DG26JA0LK1239Hgb651TWfs0j1', {
+      env.mod = new env.Mod('secure-store-redis-tests', '823HD8DG26JA0LK1239Hgb651TWfs0j1', {
         url: '127.0.0.1:6379'
       });
       await env.mod.init();
