@@ -1,6 +1,6 @@
 {
   "name": "secure-store-redis",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "A simple wrapper to encrypt and decrypt data stored in Redis",
   "license": "MIT",
   "private": false,
