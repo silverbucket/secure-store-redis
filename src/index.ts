@@ -40,7 +40,7 @@ export default class SecureStore {
     await this.pool.init();
   }
 
-  async save(key: string, data: never, postfix: string = '') {
+  async save(key: string, data: any, postfix: string = '') {
     if (typeof key !== 'string') {
       throw new Error('No hash key specified');
     } else if (!data) {
@@ -50,13 +50,13 @@ export default class SecureStore {
 
     if (typeof data === 'object') {
       try {
-        data = JSON.stringify(data) as never;
+        data = JSON.stringify(data);
       } catch (e) {
         throw new Error(e);
       }
     }
 
-    data = this.encrypt(data) as never;
+    data = this.encrypt(data);
     const hash = SecureStore.shasum(key);
     return await this.pool.hset(this.uid + postfix, hash, data);
   }

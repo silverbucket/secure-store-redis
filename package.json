@@ -30,7 +30,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "redis-connection-pool": "^3.0.0"
+    "redis-connection-pool": "^3.0.2"
   },
   "devDependencies": {
     "@types/eslint": "8.4.6",
