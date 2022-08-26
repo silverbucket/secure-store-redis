@@ -30,17 +30,17 @@
     "build": "tsc"
   },
   "dependencies": {
-    "redis-connection-pool": "^3.0.2"
+    "redis-connection-pool": "^4.0.1"
   },
   "devDependencies": {
     "@types/eslint": "8.4.6",
-    "@types/node": "18.7.9",
-    "@typescript-eslint/eslint-plugin": "5.33.1",
-    "@typescript-eslint/parser": "5.33.1",
+    "@types/node": "^18.7.13",
+    "@typescript-eslint/eslint-plugin": "^5.35.1",
+    "@typescript-eslint/parser": "^5.35.1",
     "eslint": "8.22.0",
     "eslint-plugin-security-node": "1.1.1",
     "jaribu": "2.2.3",
-    "typescript": "4.7.4",
+    "typescript": "^4.8.2",
     "typescript-eslint": "0.0.1-alpha.0"
   },
   "repository": {
