@@ -35,8 +35,8 @@
   "devDependencies": {
     "@types/eslint": "8.4.6",
     "@types/node": "18.7.13",
-    "@typescript-eslint/eslint-plugin": "5.35.1",
-    "@typescript-eslint/parser": "5.35.1",
+    "@typescript-eslint/eslint-plugin": "5.36.0",
+    "@typescript-eslint/parser": "5.36.0",
     "eslint": "8.22.0",
     "eslint-plugin-security-node": "1.1.1",
     "jaribu": "2.2.3",
