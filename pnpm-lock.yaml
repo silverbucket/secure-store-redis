@@ -18,6 +18,9 @@ devDependencies:
   '@typescript-eslint/parser':
     specifier: 5.36.0
     version: 5.36.0(eslint@8.22.0)(typescript@4.8.2)
+  debug:
+    specifier: 4.3.4
+    version: 4.3.4
   eslint:
     specifier: 8.22.0
     version: 8.22.0

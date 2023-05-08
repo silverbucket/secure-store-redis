@@ -30,8 +30,8 @@
   ],
   "scripts": {
     "test": "npm run build && jaribu",
-    "lint": "prettier --check . && eslint .",
-    "lint:fix": "prettier --write . && eslint --fix .",
+    "lint": "prettier --check . && eslint --max-warnings 0 .",
+    "lint:fix": "prettier --write . && eslint --max-warnings 0 --fix .",
     "build": "tsc"
   },
   "dependencies": {
@@ -42,6 +42,7 @@
     "@types/node": "18.7.13",
     "@typescript-eslint/eslint-plugin": "5.36.0",
     "@typescript-eslint/parser": "5.36.0",
+    "debug": "4.3.4",
     "eslint": "8.22.0",
     "eslint-plugin-security-node": "1.1.1",
     "jaribu": "2.2.3",

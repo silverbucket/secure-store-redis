@@ -13,6 +13,10 @@ import {
   RedisScripts,
 } from "redis";
 
+import debug from "debug";
+
+const log = debug("secure-store-redis");
+
 const ALGORITHM = "aes-256-cbc",
   IV_LENGTH = 16;
 
@@ -39,16 +43,22 @@ export default class SecureStore {
     this.config = cfg;
   }
 
-  async init() {
+  async init(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.client = createClient(this.config.redis);
-      this.client.on("error", (err) => {
+      const client = createClient(this.config.redis);
+      client.on("error", (err) => {
+        log("error connecting", err);
         return reject(err);
       });
-      this.client.connect().then(resolve);
+      client.connect().then(() => {
+        log("connected");
+        this.client = client;
+        resolve();
+      });
     });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async save(key: string, data: any, postfix = "") {
     if (typeof key !== "string") {
       throw new Error("No hash key specified");
