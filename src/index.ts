@@ -27,7 +27,7 @@ interface SecureStoreConfig {
 export default class SecureStore {
   uid: string;
   secret: string;
-  private client: RedisClientType<RedisModules, RedisFunctions, RedisScripts>;
+  client: RedisClientType<RedisModules, RedisFunctions, RedisScripts>;
   private config: SecureStoreConfig;
 
   constructor(uid: string, secret: string, cfg: SecureStoreConfig) {
@@ -41,6 +41,14 @@ export default class SecureStore {
     this.uid = uid;
     this.secret = secret;
     this.config = cfg;
+  }
+
+  async quit() {
+    return this.client.quit();
+  }
+
+  async disconnect() {
+    return this.client.disconnect();
   }
 
   async init(): Promise<void> {
@@ -77,7 +85,7 @@ export default class SecureStore {
 
     data = this.encrypt(data);
     const hash = SecureStore.shasum(key);
-    return await this.client.hSet(this.uid + postfix, hash, data);
+    return await this.client.HSET(this.uid + postfix, hash, data);
   }
 
   async get(key: string, postfix = "") {
@@ -87,7 +95,7 @@ export default class SecureStore {
     postfix = postfix ? ":" + postfix : "";
 
     const hash = SecureStore.shasum(key);
-    const res = await this.client.hGet(this.uid + postfix, hash);
+    const res = await this.client.HGET(this.uid + postfix, hash);
     let data;
     if (typeof res === "string") {
       try {
@@ -112,7 +120,7 @@ export default class SecureStore {
     }
     postfix = postfix ? ":" + postfix : "";
     const hash = SecureStore.shasum(key);
-    return await this.client.hDel(this.uid + postfix, hash);
+    return await this.client.HDEL(this.uid + postfix, hash);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

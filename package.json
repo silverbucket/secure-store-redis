@@ -1,6 +1,6 @@
 {
   "name": "secure-store-redis",
-  "version": "2.0.5",
+  "version": "3.0.0-rc.1",
   "description": "A simple wrapper to encrypt and decrypt data stored in Redis",
   "license": "MIT",
   "private": false,
@@ -30,7 +30,7 @@
   ],
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "test": "c8 -x src/bootstrap -x \"src/**/*.test.*\" mocha -r ts-node/register src/*.test.ts",
+    "test": "mocha -r ts-node/register src/*.test.ts",
     "lint": "prettier --check . && eslint --max-warnings 0 .",
     "lint:fix": "prettier --write . && eslint --max-warnings 0 --fix .",
     "build": "tsc"
@@ -40,6 +40,7 @@
   },
   "devDependencies": {
     "@types/chai": "4.3.5",
+    "@types/debug": "4.1.7",
     "@types/eslint": "8.4.6",
     "@types/mocha": "10.0.1",
     "@types/node": "18.7.13",
@@ -49,7 +50,6 @@
     "debug": "4.3.4",
     "eslint": "8.22.0",
     "eslint-plugin-security-node": "1.1.1",
-    "jaribu": "2.2.3",
     "mocha": "10.2.0",
     "prettier": "2.8.8",
     "ts-node": "10.9.1",
