@@ -43,27 +43,35 @@ export default class SecureStore {
     this.config = cfg;
   }
 
-  async quit() {
-    return this.client.quit();
+  async quit(): Promise<void> {
+    if (this.client) {
+      await this.client.quit();
+    }
   }
 
-  async disconnect() {
-    return this.client.disconnect();
+  async disconnect(): Promise<void> {
+    if (this.client) {
+      await this.client.disconnect();
+    }
   }
 
   async init(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const client = createClient(this.config.redis);
-      client.on("error", (err) => {
-        log("error connecting", err);
-        return reject(err);
+    if (this.client) {
+      return Promise.resolve();
+    } else {
+      return new Promise((resolve, reject) => {
+        const client = createClient(this.config.redis);
+        client.on("error", (err) => {
+          log("error connecting", err);
+          return reject(err);
+        });
+        client.connect().then(() => {
+          log("connected");
+          this.client = client;
+          resolve();
+        });
       });
-      client.connect().then(() => {
-        log("connected");
-        this.client = client;
-        resolve();
-      });
-    });
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -83,9 +91,10 @@ export default class SecureStore {
       }
     }
 
+    await this.init();
     data = this.encrypt(data);
     const hash = SecureStore.shasum(key);
-    return await this.client.HSET(this.uid + postfix, hash, data);
+    return this.client.HSET(this.uid + postfix, hash, data);
   }
 
   async get(key: string, postfix = "") {
@@ -94,6 +103,7 @@ export default class SecureStore {
     }
     postfix = postfix ? ":" + postfix : "";
 
+    await this.init();
     const hash = SecureStore.shasum(key);
     const res = await this.client.HGET(this.uid + postfix, hash);
     let data;
@@ -119,8 +129,9 @@ export default class SecureStore {
       throw new Error("No hash key specified");
     }
     postfix = postfix ? ":" + postfix : "";
+    await this.init();
     const hash = SecureStore.shasum(key);
-    return await this.client.HDEL(this.uid + postfix, hash);
+    return this.client.HDEL(this.uid + postfix, hash);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

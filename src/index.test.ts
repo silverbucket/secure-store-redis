@@ -56,11 +56,6 @@ describe("SecureStore", () => {
             url: 'redis://127.0.0.1:6379'
           }
         });
-        await ss.init();
-    });
-
-    it('connects', async () => {
-      expect(typeof ss.client).eql('object');
     });
 
     for (const test of tests) {
