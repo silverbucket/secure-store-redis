@@ -23,7 +23,7 @@ const log = debug("secure-store-redis");
 /**
  * Possible Config parameters for SecureStore constructor
  */
-interface SecureStoreConfig {
+export interface SecureStoreConfig {
     /**
      * A unique ID which can be used to prefix data stored in Redis
      */
