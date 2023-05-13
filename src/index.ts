@@ -35,7 +35,7 @@ export interface SecureStoreConfig {
     /**
      * Redis connect config object
      */
-    redis: RedisClientOptions;
+    redis?: RedisClientOptions;
 }
 
 /**
@@ -51,7 +51,7 @@ export default class SecureStore {
      * Redis client
      */
     client: RedisClientType<RedisModules, RedisFunctions, RedisScripts>;
-    private config: Required<SecureStoreConfig>;
+    private readonly config: Required<SecureStoreConfig>;
 
     /**
      * Creates an instance of SecureStore.
@@ -60,7 +60,7 @@ export default class SecureStore {
      */
     constructor(cfg: SecureStoreConfig) {
         if (typeof cfg.redis !== "object") {
-            throw new Error("Redis config must be specified");
+            cfg.redis = {};
         }
         if (typeof cfg.uid !== "undefined") {
             if (typeof cfg.uid !== "string") {
