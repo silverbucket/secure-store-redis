@@ -84,13 +84,13 @@ export default class SecureStore {
     /**
      * Disconnects the Redis client
      */
-    async disconnect(): Promise<void> {
-        if (this.client) {
+    async disconnect(client = this.client): Promise<void> {
+        if (client) {
             log("Redis client quit called");
-            await this.client.quit();
+            await client.quit();
             try {
                 log("Redis client disconnect called");
-                await this.client.disconnect();
+                await client.disconnect();
             } catch (e) {
                 log("Redis disconnect failed, ignoring");
             }
@@ -103,15 +103,20 @@ export default class SecureStore {
     async init(): Promise<void> {
         if (!this.client) {
             return new Promise((resolve, reject) => {
+                let error = false;
                 const client = createClient(this.config.redis);
-                client.on("error", (err) => {
+                client.on("error", async (err) => {
+                    error = true;
                     log("Redis connection error", err);
+                    this.disconnect(client);
                     return reject(err);
                 });
                 client.connect().then(() => {
-                    log("Connected to Redis");
-                    this.client = client;
-                    resolve();
+                    if (!error) {
+                        log("Connected to Redis");
+                        this.client = client;
+                        resolve();
+                    }
                 });
             });
         }

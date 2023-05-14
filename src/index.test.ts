@@ -88,6 +88,22 @@ const tests = [
 ];
 
 describe("SecureStore", () => {
+    describe("Error handling", () => {
+        it("invalid connection config", async () => {
+            const ss = new SecureStore({
+                redis: {
+                    url: "redis://127.0.0.1:6378",
+                },
+            });
+            try {
+                await ss.init();
+                throw new Error("should not arrive here");
+            } catch (e) {
+                expect(e.toString()).to.eql("Error: connect ECONNREFUSED 127.0.0.1:6378");
+            }
+        });
+    });
+
     describe("Client get and save", () => {
         const ss = new SecureStore({
             uid: "ssr-test",
