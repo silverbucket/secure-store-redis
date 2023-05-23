@@ -99,7 +99,9 @@ describe("SecureStore", () => {
                 await ss.init();
                 throw new Error("should not arrive here");
             } catch (e) {
-                expect(e.toString()).to.eql("Error: connect ECONNREFUSED 127.0.0.1:6378");
+                expect(e.toString()).to.eql(
+                    "Error: connect ECONNREFUSED 127.0.0.1:6378",
+                );
             }
         });
     });
