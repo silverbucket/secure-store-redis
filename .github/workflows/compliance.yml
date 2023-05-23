@@ -38,27 +38,27 @@ jobs:
             - run: pnpm build
 
     test:
-        services:
-            redis:
-                image: redis
-                options: >-
-                    --health-cmd "redis-cli ping"
-                    --health-interval 10s
-                    --health-timeout 5s
-                    --health-retries 5
-
         runs-on: ubuntu-latest
 
         strategy:
             matrix:
                 node-version: [18, 20]
+                redis-version: [6, 7]
 
         steps:
-            - uses: actions/checkout@v3
+            - name: Checkout repository code
+              uses: actions/checkout@v3
+
             - name: Use Node.js ${{ matrix.node-version }}
               uses: actions/setup-node@v3
               with:
                   node-version: ${{ matrix.node-version }}
+
+            - name: Start Redis
+              uses: supercharge/redis-github-action@1.5.0
+              with:
+                  redis-version: ${{ matrix.redis-version }}
+
             - run: npm install -g pnpm
             - run: pnpm install
             - run: pnpm build
