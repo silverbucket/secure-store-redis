@@ -1,56 +1,56 @@
 name: Compliance
 on:
-  pull_request:
+    pull_request:
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
+    lint:
+        runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [16, 18]
+        strategy:
+            matrix:
+                node-version: [16, 18]
 
-    steps:
-      - uses: actions/checkout@v3
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ matrix.node-version }}
-      - run: npm install -g pnpm
-      - run: pnpm install
-      - run: pnpm lint
+        steps:
+            - uses: actions/checkout@v3
+            - name: Use Node.js ${{ matrix.node-version }}
+              uses: actions/setup-node@v3
+              with:
+                  node-version: ${{ matrix.node-version }}
+            - run: npm install -g pnpm
+            - run: pnpm install
+            - run: pnpm lint
 
-  build:
-    runs-on: ubuntu-latest
+    build:
+        runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [16, 18]
+        strategy:
+            matrix:
+                node-version: [16, 18]
 
-    steps:
-      - uses: actions/checkout@v3
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ matrix.node-version }}
-      - run: npm install -g pnpm
-      - run: pnpm install
-      - run: pnpm build
+        steps:
+            - uses: actions/checkout@v3
+            - name: Use Node.js ${{ matrix.node-version }}
+              uses: actions/setup-node@v3
+              with:
+                  node-version: ${{ matrix.node-version }}
+            - run: npm install -g pnpm
+            - run: pnpm install
+            - run: pnpm build
 
-  test:
-    runs-on: ubuntu-latest
+    test:
+        runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [ 16, 18 ]
+        strategy:
+            matrix:
+                node-version: [16, 18]
 
-    steps:
-      - uses: actions/checkout@v3
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ matrix.node-version }}
-      - run: npm install -g pnpm
-      - run: pnpm install
-      - run: pnpm build
-      - run: pnpm test
+        steps:
+            - uses: actions/checkout@v3
+            - name: Use Node.js ${{ matrix.node-version }}
+              uses: actions/setup-node@v3
+              with:
+                  node-version: ${{ matrix.node-version }}
+            - run: npm install -g pnpm
+            - run: pnpm install
+            - run: pnpm build
+            - run: pnpm test
