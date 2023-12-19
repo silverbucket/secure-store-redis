@@ -4,8 +4,10 @@ A simple wrapper to encrypt and decrypt data stored in redis.
 The main point is to ensure that any data you store in redis cannot be accessed
 by anyone else, without the key.
 
+## Initialization
+
 ```javascript
-const SecureStore = require("secure-store-redis").default;
+import SecureStore from "secure-store-redis";
 
 const store = new SecureStore({
   uid: "myApp:store",
@@ -15,14 +17,29 @@ const store = new SecureStore({
   }
 ));
 await store.init();
+```
 
+## Save
+```javascript
 await store.save("quote", "hello world");
+```
+
+### Get
+```
 let res = await store.get("quote");
 // res: 'hello world'
+```
+
+## Delete
+```javascript
 const num = await store.delete("quote");
 // num: 1
 let res = await store.get("quote");
 // res: null
+```
+
+## Attempt to fetch encrypted data from another store
+```
 await store.save("quote", "hello world again");
 
 const otherStore = new SecureStore({
@@ -36,4 +53,10 @@ await otherStore.init();
 
 let res = await otherStore.get("quote");
 // res: null
+```
+
+## Disconnect from Redis
+```javascript
+await otherStore.disconnect();
+await store.disconnect();
 ```
