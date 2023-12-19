@@ -36,7 +36,7 @@
         "build": "tsc"
     },
     "dependencies": {
-        "redis": "4.6.6"
+        "redis": "4.6.12"
     },
     "devDependencies": {
         "@types/chai": "4.3.11",
