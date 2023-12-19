@@ -25,7 +25,7 @@ await store.save("quote", "hello world");
 ```
 
 ### Get
-```
+```javascript
 let res = await store.get("quote");
 // res: 'hello world'
 ```
@@ -39,7 +39,7 @@ let res = await store.get("quote");
 ```
 
 ## Attempt to fetch encrypted data from another store
-```
+```javascript
 await store.save("quote", "hello world again");
 
 const otherStore = new SecureStore({
