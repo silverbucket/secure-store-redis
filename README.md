@@ -4,6 +4,11 @@ A simple wrapper to encrypt and decrypt data stored in redis.
 The main point is to ensure that any data you store in redis cannot be accessed
 by anyone else, without the key.
 
+## Installation
+```bash
+npm install secure-store-redis
+```
+
 ## Initialization
 
 ```javascript
