@@ -30,6 +30,7 @@
     ],
     "scripts": {
         "preinstall": "npx only-allow pnpm",
+        "publish": "pnpm build && pnpm publish",
         "test": "mocha -r ts-node/register src/*.test.ts",
         "lint": "prettier --check . && eslint --max-warnings 0 .",
         "lint:fix": "prettier --write .",
