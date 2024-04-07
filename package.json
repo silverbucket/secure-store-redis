@@ -1,6 +1,6 @@
 {
     "name": "secure-store-redis",
-    "version": "3.0.5",
+    "version": "3.0.6",
     "description": "A simple wrapper to encrypt and decrypt data stored in Redis",
     "license": "MIT",
     "private": false,
@@ -30,7 +30,6 @@
     ],
     "scripts": {
         "preinstall": "npx only-allow pnpm",
-        "publish": "pnpm build && pnpm publish",
         "test": "mocha -r ts-node/register src/*.test.ts",
         "lint": "prettier --check . && eslint --max-warnings 0 .",
         "lint:fix": "prettier --write .",
