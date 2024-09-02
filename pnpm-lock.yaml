@@ -17,8 +17,8 @@ devDependencies:
     specifier: 4.1.12
     version: 4.1.12
   '@types/eslint':
-    specifier: 8.56.6
-    version: 8.56.6
+    specifier: 9.6.1
+    version: 9.6.1
   '@types/mocha':
     specifier: 10.0.6
     version: 10.0.6
@@ -239,8 +239,8 @@ packages:
       '@types/ms': 0.7.34
     dev: true
 
-  /@types/eslint@8.56.6:
-    resolution: {integrity: sha512-ymwc+qb1XkjT/gfoQwxIeHZ6ixH23A+tCT2ADSA/DPVKzAjwYkTXBMCQ/f6fe4wEa85Lhp26VPeUxI7wMhAi7A==}
+  /@types/eslint@9.6.1:
+    resolution: {integrity: sha512-FXx2pKgId/WyYo2jXw63kk7/+TY7u7AziEJxJAnSFzHlqTAS3Ync6SvgYAN/k4/PQpnnVuzoMuVnByKK2qp0ag==}
     dependencies:
       '@types/estree': 1.0.5
       '@types/json-schema': 7.0.15
