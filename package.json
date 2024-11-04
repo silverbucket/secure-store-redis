@@ -39,14 +39,14 @@
         "redis": "4.6.13"
     },
     "devDependencies": {
-        "@types/chai": "4.3.14",
+        "@types/chai": "5.0.1",
         "@types/debug": "4.1.12",
         "@types/eslint": "8.56.6",
         "@types/mocha": "10.0.6",
         "@types/node": "20.12.2",
         "@typescript-eslint/eslint-plugin": "7.4.0",
         "@typescript-eslint/parser": "7.4.0",
-        "chai": "4.4.1",
+        "chai": "5.1.2",
         "debug": "4.3.4",
         "eslint": "8.57.0",
         "eslint-plugin-security-node": "1.1.4",
