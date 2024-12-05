@@ -43,7 +43,7 @@
         "@types/debug": "4.1.12",
         "@types/eslint": "8.56.6",
         "@types/mocha": "10.0.6",
-        "@types/node": "20.12.2",
+        "@types/node": "22.10.1",
         "@typescript-eslint/eslint-plugin": "7.4.0",
         "@typescript-eslint/parser": "7.4.0",
         "chai": "4.4.1",
