@@ -36,24 +36,24 @@
         "build": "tsc"
     },
     "dependencies": {
-        "redis": "4.6.13"
+        "redis": "4.7.0"
     },
     "devDependencies": {
-        "@types/chai": "4.3.14",
+        "@types/chai": "4.3.20",
         "@types/debug": "4.1.12",
-        "@types/eslint": "8.56.6",
-        "@types/mocha": "10.0.6",
-        "@types/node": "20.12.2",
-        "@typescript-eslint/eslint-plugin": "7.4.0",
-        "@typescript-eslint/parser": "7.4.0",
-        "chai": "4.4.1",
-        "debug": "4.3.4",
-        "eslint": "8.57.0",
+        "@types/eslint": "8.56.12",
+        "@types/mocha": "10.0.10",
+        "@types/node": "20.17.9",
+        "@typescript-eslint/eslint-plugin": "7.18.0",
+        "@typescript-eslint/parser": "7.18.0",
+        "chai": "4.5.0",
+        "debug": "4.3.7",
+        "eslint": "8.57.1",
         "eslint-plugin-security-node": "1.1.4",
-        "mocha": "10.4.0",
-        "prettier": "3.2.5",
+        "mocha": "10.8.2",
+        "prettier": "3.4.1",
         "ts-node": "10.9.2",
-        "typescript": "5.4.3"
+        "typescript": "5.7.2"
     },
     "repository": {
         "type": "git",
