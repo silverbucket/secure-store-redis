@@ -21,7 +21,7 @@ const store = new SecureStore({
   redis: {
     url: 'redis://localhost:6379',
   }
-));
+});
 await store.init();
 ```
 
