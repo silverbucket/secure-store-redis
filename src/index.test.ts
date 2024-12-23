@@ -1,6 +1,6 @@
 import { expect } from "chai";
 
-import SecureStore from "./index";
+import SecureStore from "./index.js";
 
 const complexObj = {
     foo: "bar",

@@ -3,9 +3,9 @@
     "compilerOptions": {
         "incremental": false,
         "baseUrl": ".",
-        "moduleResolution": "node",
-        "module": "commonjs",
-        "target": "es6",
+        "moduleResolution": "NodeNext",
+        "module": "NodeNext",
+        "target": "ESNext",
         "lib": ["esnext"],
         "types": ["node", "mocha"],
         "sourceMap": true,

@@ -1,13 +1,14 @@
 {
     "name": "secure-store-redis",
-    "version": "3.0.6",
+    "version": "3.0.7",
     "description": "A simple wrapper to encrypt and decrypt data stored in Redis",
     "license": "MIT",
     "private": false,
+    "type": "module",
     "packageManager": "pnpm@8.15.5",
     "engines": {
         "node": ">=16",
-        "pnpm": ">=8"
+        "pnpm": ">=9"
     },
     "keywords": [
         "redis",
@@ -30,30 +31,35 @@
     ],
     "scripts": {
         "preinstall": "npx only-allow pnpm",
-        "test": "mocha -r ts-node/register src/*.test.ts",
+        "test": "pnpm test:ts && pnpm build && pnpm test:js",
+        "test:ts": "mocha -r ts-node/register src/*.test.ts",
+        "test:js": "mocha dist/*.test.js",
         "lint": "prettier --check . && eslint --max-warnings 0 .",
         "lint:fix": "prettier --write .",
         "build": "tsc"
     },
     "dependencies": {
-        "redis": "4.6.13"
+        "redis": "4.7.0"
     },
     "devDependencies": {
-        "@types/chai": "4.3.14",
+        "@eslint/eslintrc": "^3.2.0",
+        "@eslint/js": "^9.17.0",
+        "@types/chai": "4.3.20",
         "@types/debug": "4.1.12",
-        "@types/eslint": "8.56.6",
-        "@types/mocha": "10.0.6",
-        "@types/node": "20.12.2",
-        "@typescript-eslint/eslint-plugin": "7.4.0",
-        "@typescript-eslint/parser": "7.4.0",
-        "chai": "4.4.1",
-        "debug": "4.3.4",
-        "eslint": "8.57.0",
+        "@types/eslint": "9.6.1",
+        "@types/mocha": "10.0.10",
+        "@types/node": "22.10.2",
+        "@typescript-eslint/eslint-plugin": "8.18.1",
+        "@typescript-eslint/parser": "8.18.1",
+        "chai": "4.5.0",
+        "debug": "4.4.0",
+        "eslint": "9.17.0",
         "eslint-plugin-security-node": "1.1.4",
-        "mocha": "10.4.0",
-        "prettier": "3.2.5",
+        "globals": "^15.14.0",
+        "mocha": "11.0.1",
+        "prettier": "3.4.2",
         "ts-node": "10.9.2",
-        "typescript": "5.4.3"
+        "typescript": "5.7.2"
     },
     "repository": {
         "type": "git",

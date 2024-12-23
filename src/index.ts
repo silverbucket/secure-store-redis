@@ -91,8 +91,8 @@ export default class SecureStore {
             try {
                 log("Redis client disconnect called");
                 await client.disconnect();
-            } catch (e) {
-                log("Redis disconnect failed, ignoring");
+            } catch (err) {
+                log("Redis disconnect failed, ignoring. ", err);
             }
         }
     }
@@ -167,15 +167,15 @@ export default class SecureStore {
         if (typeof res === "string") {
             try {
                 data = this.decrypt(res);
-            } catch (e) {
-                log("Failed to decrypt data");
+            } catch (err) {
+                log("Failed to decrypt data. ", err);
                 return null;
             }
 
             try {
                 data = JSON.parse(data);
-            } catch (e) {
-                log("Failed to parse dataset as JSON");
+            } catch (err) {
+                log("Failed to parse dataset as JSON. ", err);
             }
         } else {
             data = res;
