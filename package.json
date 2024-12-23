@@ -1,13 +1,13 @@
 {
     "name": "secure-store-redis",
-    "version": "3.0.6",
+    "version": "3.0.7",
     "description": "A simple wrapper to encrypt and decrypt data stored in Redis",
     "license": "MIT",
     "private": false,
     "packageManager": "pnpm@8.15.5",
     "engines": {
         "node": ">=16",
-        "pnpm": ">=8"
+        "pnpm": ">=9"
     },
     "keywords": [
         "redis",
@@ -30,7 +30,9 @@
     ],
     "scripts": {
         "preinstall": "npx only-allow pnpm",
-        "test": "mocha -r ts-node/register src/*.test.ts",
+        "test": "pnpm test:ts && pnpm test:js",
+        "test:ts": "mocha -r ts-node/register src/*.test.ts",
+        "test:js": "mocha dist/*.test.js",
         "lint": "prettier --check . && eslint --max-warnings 0 .",
         "lint:fix": "prettier --write .",
         "build": "tsc"
