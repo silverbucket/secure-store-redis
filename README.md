@@ -16,11 +16,11 @@ npm install secure-store-redis
 import SecureStore from "secure-store-redis";
 
 const store = new SecureStore({
-  uid: "myApp:store",
-  secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
-  redis: {
-    url: 'redis://localhost:6379',
-  }
+    uid: "myApp:store",
+    secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+    redis: {
+        url: "redis://localhost:6379",
+    },
 });
 await store.init();
 ```
