@@ -1,5 +1,5 @@
 {
-    "extends": ["config:base"],
+    "extends": ["config:recommended"],
     "packageRules": [
         {
             "matchDepTypes": ["devDependencies", "dependencies"],
@@ -8,7 +8,9 @@
         }
     ],
     "dependencyDashboard": true,
-    "lockFileMaintenance": { "enabled": true },
+    "lockFileMaintenance": {
+        "enabled": true
+    },
     "schedule": "before 7am on the first day of the month",
-    "stabilityDays": 7
+    "minimumReleaseAge": "7 days"
 }
