@@ -39,7 +39,7 @@
         "build": "tsc"
     },
     "dependencies": {
-        "redis": "4.7.0"
+        "redis": "5.10.0"
     },
     "devDependencies": {
         "@eslint/eslintrc": "^3.2.0",
