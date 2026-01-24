@@ -6,9 +6,8 @@ Thank you for your interest in contributing! This guide will help you get starte
 
 ### Prerequisites
 
-- Node.js 20 or higher
+- Bun, we use bun for the development environment and package management
 - Redis server running locally
-- Bun package manager (recommended)
 
 ### Installation
 
@@ -20,8 +19,7 @@ cd secure-store-redis
 # Install dependencies
 bun install
 
-# Start Redis (if not already running)
-redis-server
+# Install and/or Start Redis (if not already running)
 ```
 
 ## Development Workflow
