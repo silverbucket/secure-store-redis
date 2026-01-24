@@ -15,6 +15,55 @@ const ALGORITHM = "aes-256-gcm",
 const log = debug("secure-store-redis");
 
 /**
+ * Base error class for SecureStore
+ */
+export class SecureStoreError extends Error {
+    constructor(
+        message: string,
+        public readonly code?: string,
+    ) {
+        super(message);
+        this.name = "SecureStoreError";
+    }
+}
+
+/**
+ * Connection-related errors
+ */
+export class ConnectionError extends SecureStoreError {
+    constructor(message: string, cause?: Error) {
+        super(message, "CONNECTION_ERROR");
+        this.name = "ConnectionError";
+        if (cause) {
+            this.cause = cause;
+        }
+    }
+}
+
+/**
+ * Encryption/decryption errors
+ */
+export class EncryptionError extends SecureStoreError {
+    constructor(message: string, cause?: Error) {
+        super(message, "ENCRYPTION_ERROR");
+        this.name = "EncryptionError";
+        if (cause) {
+            this.cause = cause;
+        }
+    }
+}
+
+/**
+ * Configuration validation errors
+ */
+export class ValidationError extends SecureStoreError {
+    constructor(message: string) {
+        super(message, "VALIDATION_ERROR");
+        this.name = "ValidationError";
+    }
+}
+
+/**
  * Possible Config parameters for SecureStore constructor
  */
 export interface SecureStoreConfig {
@@ -69,14 +118,16 @@ export default class SecureStore {
         }
         if (typeof cfg.uid !== "undefined") {
             if (typeof cfg.uid !== "string") {
-                throw new Error("If specifying a UID, it must be a string");
+                throw new ValidationError(
+                    "If specifying a UID, it must be a string",
+                );
             }
         } else {
             cfg.uid = randomBytes(4).toString("hex");
         }
         if (typeof cfg.secret !== "undefined") {
             if (typeof cfg.secret !== "string" || cfg.secret.length !== 32) {
-                throw new Error(
+                throw new ValidationError(
                     `If specifying a secret, it must be a 32 char string (length: ${cfg.secret.length})`,
                 );
             }
@@ -142,7 +193,12 @@ export default class SecureStore {
                     })
                     .catch((err: Error) => {
                         client.disconnect();
-                        reject(err);
+                        reject(
+                            new ConnectionError(
+                                "Failed to connect to Redis",
+                                err,
+                            ),
+                        );
                     });
             });
         }
