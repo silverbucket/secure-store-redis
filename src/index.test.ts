@@ -119,8 +119,8 @@ describe("SecureStore", () => {
         });
 
         describe("First client", () => {
-            for (const t of tests) {
-                test(t.desc, t.test(ss));
+            for (const testCase of tests) {
+                test(testCase.desc, testCase.test(ss));
             }
         });
 
