@@ -209,9 +209,9 @@ export default class SecureStore {
      */
     async save<T = unknown>(key: string, data: T, postfix = ""): Promise<void> {
         if (typeof key !== "string") {
-            throw new Error("No hash key specified");
+            throw new ValidationError("No hash key specified");
         } else if (!data) {
-            throw new Error("No data provided, nothing to save");
+            throw new ValidationError("No data provided, nothing to save");
         }
         postfix = postfix ? ":" + postfix : "";
 
@@ -220,7 +220,9 @@ export default class SecureStore {
             try {
                 serializedData = JSON.stringify(data);
             } catch (e) {
-                throw new Error(e instanceof Error ? e.message : String(e));
+                throw new ValidationError(
+                    e instanceof Error ? e.message : String(e),
+                );
             }
         } else {
             serializedData = String(data);
@@ -237,7 +239,7 @@ export default class SecureStore {
      */
     async get<T = unknown>(key: string, postfix = ""): Promise<T | null> {
         if (typeof key !== "string") {
-            throw new Error("No hash key specified");
+            throw new ValidationError("No hash key specified");
         }
         postfix = postfix ? ":" + postfix : "";
 
@@ -260,7 +262,10 @@ export default class SecureStore {
             }
         } catch (err) {
             log("Failed to decrypt data. ", err);
-            return null;
+            throw new EncryptionError(
+                `Failed to decrypt data for key: ${key}`,
+                err instanceof Error ? err : new Error(String(err)),
+            );
         }
     }
 
@@ -269,7 +274,7 @@ export default class SecureStore {
      */
     async delete<T = unknown>(key: string, postfix = ""): Promise<number> {
         if (typeof key !== "string") {
-            throw new Error("No hash key specified");
+            throw new ValidationError("No hash key specified");
         }
         postfix = postfix ? ":" + postfix : "";
         await this.init();
