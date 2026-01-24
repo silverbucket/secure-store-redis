@@ -1,4 +1,4 @@
-import { expect, test, describe, afterAll } from "bun:test";
+import { expect, test, describe, afterAll } from "./test-compat.ts";
 
 import SecureStore from "./index.ts";
 

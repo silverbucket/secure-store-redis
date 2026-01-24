@@ -34,6 +34,7 @@
     ],
     "scripts": {
         "test": "bun test",
+        "test:node": "node --import tsx --test src/index.test.ts",
         "lint": "prettier --check . && eslint --max-warnings 0 .",
         "lint:fix": "prettier --write .",
         "build": "bun build ./src/index.ts --outdir ./dist --target node --format esm && bun x tsc --emitDeclarationOnly",
@@ -51,6 +52,7 @@
         "eslint-plugin-security-node": "1.1.4",
         "globals": "^16.5.0",
         "prettier": "3.5.2",
+        "tsx": "^4.21.0",
         "typescript": "5.7.3"
     },
     "repository": {
