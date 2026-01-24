@@ -1,4 +1,4 @@
-import { expect, test, describe, afterAll } from "./test-compat.ts";
+import { expect, test, describe, afterAll, beforeAll } from "./test-compat.ts";
 
 import SecureStore from "./index.ts";
 
@@ -119,6 +119,10 @@ describe("SecureStore", () => {
             },
         });
 
+        beforeAll(async () => {
+            await ss.init();
+        });
+
         describe("First client", () => {
             for (const testCase of tests) {
                 test(testCase.desc, testCase.test(ss));
@@ -132,6 +136,10 @@ describe("SecureStore", () => {
                 redis: {
                     url: "redis://127.0.0.1:6379",
                 },
+            });
+
+            beforeAll(async () => {
+                await ss2.init();
             });
 
             test("get (wrong store)", async () => {
@@ -150,34 +158,45 @@ describe("SecureStore", () => {
     });
 
     describe("Invocations", () => {
-        test("without uid", async () => {
-            const store = new SecureStore({
+        let store: SecureStore;
+
+        beforeAll(async () => {
+            store = new SecureStore({
                 secret: "dh348djGk548fKs83kDs8kdSfGssgJfg",
                 redis: {
                     url: "redis://127.0.0.1:6379",
                 },
                 allowWeakSecrets: true,
             });
-            await store.save("foo", "hello");
-            expect(await store.get("foo")).toEqual("hello");
+            await store.init();
+        });
+
+        afterAll(async () => {
             await store.disconnect();
         });
+
+        test("without uid", async () => {
+            await store.save("foo", "hello");
+            expect(await store.get("foo")).toEqual("hello");
+        });
         test("no clashing", async () => {
-            const store = new SecureStore({
+            const store1 = new SecureStore({
                 redis: {
                     url: "redis://127.0.0.1:6379",
                 },
             });
-            await store.save("foo", "hello1");
-            expect(await store.get("foo")).toEqual("hello1");
             const store2 = new SecureStore({
                 redis: {
                     url: "redis://127.0.0.1:6379",
                 },
             });
+            await store1.init();
+            await store2.init();
+            await store1.save("foo", "hello1");
+            expect(await store1.get("foo")).toEqual("hello1");
             await store2.save("foo", "hello2");
             expect(await store2.get("foo")).toEqual("hello2");
-            await store.disconnect();
+            await store1.disconnect();
             await store2.disconnect();
         });
     });
@@ -189,6 +208,14 @@ describe("SecureStore", () => {
             redis: {
                 url: "redis://127.0.0.1:6379",
             },
+        });
+
+        beforeAll(async () => {
+            await ss.init();
+        });
+
+        afterAll(async () => {
+            await ss.disconnect();
         });
 
         describe("First client", () => {
@@ -222,12 +249,21 @@ describe("SecureStore", () => {
     });
 
     describe("README Example", () => {
-        const store = new SecureStore({
-            uid: "myApp:store",
-            secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
-            redis: {
-                url: "redis://localhost:6379",
-            },
+        let store: SecureStore;
+
+        beforeAll(async () => {
+            store = new SecureStore({
+                uid: "myApp:store",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: {
+                    url: "redis://localhost:6379",
+                },
+            });
+            await store.init();
+        });
+
+        afterAll(async () => {
+            await store.disconnect();
         });
 
         describe("First client", () => {
@@ -248,7 +284,7 @@ describe("SecureStore", () => {
             });
         });
 
-        describe("Second client", () => {
+describe("Second client", () => {
             const ss2 = new SecureStore({
                 uid: "myApp:store",
                 secret: "this is the wrong secret 32 char",
@@ -257,6 +293,42 @@ describe("SecureStore", () => {
                 },
                 allowWeakSecrets: true,
             });
+
+            beforeAll(async () => {
+                await ss2.init();
+            });
+
+            test("get (wrong store)", async () => {
+                const res = await ss2.get("quote");
+                expect(res).toEqual(null);
+            });
+
+            afterAll(async () => {
+                await ss2.disconnect();
+            });
+        });
+
+        describe("Third client (same secret)", () => {
+            const ss3 = new SecureStore({
+                uid: "myApp:store",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: {
+                    url: "redis://localhost:6379",
+                },
+            });
+
+            beforeAll(async () => {
+                await ss3.init();
+            });
+
+            test("get data from another store", async () => {
+                expect(await ss3.get("quote")).toEqual("hello world again");
+            });
+
+            afterAll(async () => {
+                await ss3.disconnect();
+            });
+        });
 
             test("get (wrong store)", async () => {
                 const res = await ss2.get("quote");

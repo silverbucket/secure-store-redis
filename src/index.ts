@@ -208,6 +208,7 @@ export default class SecureStore {
      */
     client: Redis | undefined;
     private readonly config: Required<SecureStoreConfig>;
+    private connected = false;
 
     /**
      * Creates an instance of SecureStore.
@@ -251,6 +252,25 @@ export default class SecureStore {
         if (client) {
             log("Redis client quit called");
             await client.quit();
+            this.connected = false;
+        }
+    }
+
+    /**
+     * Check if connected to Redis
+     */
+    get isConnected(): boolean {
+        return this.connected && this.client !== undefined;
+    }
+
+    /**
+     * Ensures connection is established before operations
+     */
+    private ensureConnected(): void {
+        if (!this.isConnected) {
+            throw new ConnectionError(
+                "Not connected to Redis. Call await store.connect() first.",
+            );
         }
     }
 
@@ -296,10 +316,12 @@ export default class SecureStore {
                     .then(() => {
                         log("Connected to Redis");
                         this.client = client;
+                        this.connected = true;
                         resolve();
                     })
                     .catch((err: Error) => {
                         client.disconnect();
+                        this.connected = false;
                         reject(
                             new ConnectionError(
                                 "Failed to connect to Redis",
@@ -335,7 +357,7 @@ export default class SecureStore {
             serializedData = String(data);
         }
 
-        await this.init();
+        this.ensureConnected();
         const encryptedData = this.encrypt(serializedData);
         const hash = SecureStore.shasum(key);
         await this.client!.hset(this.config.uid + postfix, hash, encryptedData);
@@ -350,7 +372,7 @@ export default class SecureStore {
         }
         postfix = postfix ? ":" + postfix : "";
 
-        await this.init();
+        this.ensureConnected();
         const hash = SecureStore.shasum(key);
         const res = await this.client!.hget(this.config.uid + postfix, hash);
 
@@ -382,7 +404,7 @@ export default class SecureStore {
             throw new ValidationError("No hash key specified");
         }
         postfix = postfix ? ":" + postfix : "";
-        await this.init();
+        this.ensureConnected();
         const hash = SecureStore.shasum(key);
         return this.client!.hdel(this.config.uid + postfix, hash);
     }

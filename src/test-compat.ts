@@ -17,13 +17,14 @@ type ExpectFn = (actual: unknown) => Expect;
 type TestCompat = {
     describe: DescribeFn;
     test: TestDefineFn;
+    beforeAll: HookFn;
     afterAll: HookFn;
     expect: ExpectFn;
 };
 
 const isBun = typeof Bun !== "undefined";
 
-const { describe, test, afterAll, expect } =
+const { describe, test, beforeAll, afterAll, expect } =
     await (async (): Promise<TestCompat> => {
         if (isBun) {
             // Use bun:test
@@ -31,6 +32,7 @@ const { describe, test, afterAll, expect } =
             return {
                 describe: bunTest.describe,
                 test: bunTest.test,
+                beforeAll: bunTest.beforeAll,
                 afterAll: bunTest.afterAll,
                 expect: bunTest.expect,
             };
@@ -49,10 +51,11 @@ const { describe, test, afterAll, expect } =
             return {
                 describe: nodeTest.describe,
                 test: nodeTest.it,
+                beforeAll: nodeTest.before,
                 afterAll: nodeTest.after,
                 expect: expectFn,
             };
         }
     })();
 
-export { describe, test, afterAll, expect };
+export { describe, test, beforeAll, afterAll, expect };
