@@ -71,12 +71,12 @@ await store.disconnect();
 
 ## Configuration Options
 
-| Option             | Type                            | Required | Default                       | Description                            |
-| ------------------ | ------------------------------- | -------- | ----------------------------- | -------------------------------------- |
-| `uid`              | string                          | No       | Auto-generated (4 hex chars)  | Prefix for Redis keys                  |
-| `secret`           | string                          | No       | Auto-generated (32 hex chars) | 32-character encryption secret         |
-| `redis`            | RedisOptions \| { url: string } | Yes      | -                             | Redis connection configuration         |
-| `allowWeakSecrets` | boolean                         | No       | false                         | Allow weak secrets (bypass validation) |
+| Option             | Type                            | Required | Default                        | Description                            |
+| ------------------ | ------------------------------- | -------- | ------------------------------ | -------------------------------------- |
+| `uid`              | string                          | Yes      | -                              | Prefix for Redis keys                  |
+| `secret`           | string                          | Yes      | Use SecretValidator.generate() | 32-character encryption secret         |
+| `redis`            | RedisOptions \| { url: string } | Yes      | -                              | Redis connection configuration         |
+| `allowWeakSecrets` | boolean                         | No       | false                          | Allow weak secrets (bypass validation) |
 
 ### Redis Connection Options
 
@@ -129,14 +129,118 @@ const store = new SecureStore({
     secret: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", // Too weak
     redis: { url: "redis://localhost:6379" },
 });
-
-// Allow weak secrets (not recommended for production)
-const store = new SecureStore({
-    secret: "weak-secret-but-allowed-12345678",
-    redis: { url: "redis://localhost:6379" },
-    allowWeakSecrets: true,
-});
 ```
+
+## Migration Guide (v3.x → v4.0)
+
+### Breaking Changes Summary
+
+| Change                  | Impact                            | Migration Required                                               |
+| ----------------------- | --------------------------------- | ---------------------------------------------------------------- |
+| **Explicit Connection** | Must call `await store.connect()` | Add `await store.connect()` before any operations                |
+| **Required UID**        | `uid` parameter now required      | Provide explicit `uid` in constructor                            |
+| **Namespace API**       | `postfix` parameter replaced      | Use `store.namespace("name")` method                             |
+| **AES-256-GCM**         | Encrypted data incompatible       | Re-encrypt all existing data                                     |
+| **Generic Types**       | Method signatures updated         | Add type parameters `<T>`                                        |
+| **Error Classes**       | New error types                   | Update catch blocks for new error classes                        |
+| **Secret Validation**   | Stronger validation               | Use `SecretValidator.generate()` or set `allowWeakSecrets: true` |
+
+### Step-by-Step Migration
+
+#### 1. Update Imports and Connections
+
+```typescript
+// Before v4.0
+import SecureStore from "secure-store-redis";
+const store = new SecureStore({
+    /* config */
+});
+await store.init();
+
+// After v4.0
+import SecureStore from "secure-store-redis";
+const store = new SecureStore({
+    uid: "my-app", // Now required
+    secret: SecretValidator.generate(), // Recommended
+    redis: { url: "redis://localhost:6379" },
+});
+await store.connect(); // Now explicit
+```
+
+#### 2. Update Method Calls
+
+```typescript
+// Before v4.0
+await store.save("key", data, "namespace");
+
+// After v4.0
+const ns = store.namespace("namespace");
+await ns.save("key", data);
+```
+
+#### 3. Update Type Usage
+
+```typescript
+// Before v4.0
+const data = (await store.get("key")) as any;
+
+// After v4.0
+const data = await store.get<UserType>("key");
+```
+
+#### 4. Update Error Handling
+
+```typescript
+// Before v4.0
+try {
+    await store.connect();
+} catch (err) {
+    console.error(err.message);
+}
+
+// After v4.0
+try {
+    await store.connect();
+} catch (err) {
+    if (err instanceof ConnectionError) {
+        console.error("Connection failed:", err.message);
+    }
+}
+```
+
+#### 5. Data Migration (Optional)
+
+For AES-256-GCM encryption changes, you'll need to re-encrypt existing data:
+
+```typescript
+// Migration script example
+import SecureStore from "secure-store-redis";
+
+const oldStore = new SecureStore({
+    uid: "old-app",
+    secret: "old-32-char-secret",
+    redis: { url: "redis://localhost:6379" },
+});
+await oldStore.connect();
+
+const newStore = new SecureStore({
+    uid: "new-app",
+    secret: "new-32-char-secret",
+    redis: { url: "redis://localhost:6379" },
+});
+await newStore.connect();
+
+// Migrate data
+const keys = await oldStore.client.keys("old-app:*");
+for (const key of keys) {
+    const data = await oldStore.get(key);
+    if (data) {
+        await newStore.save(key.replace("old-app:", "new-app:"), data);
+    }
+}
+```
+
+## API Reference
 
 ### Encryption
 
@@ -219,18 +323,13 @@ npm install secure-store-redis
 import SecureStore from "secure-store-redis";
 
 const store = new SecureStore({
-    uid: "myApp:store",
-    secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+    uid: "myApp:store", // Required: explicit namespace
+    secret: "32-char-secret-or-use-SecretValidator.generate()", // Required: 32-char secret
     redis: {
         url: "redis://localhost:6379",
     },
 });
-
-await store.init();
-await store.save("quote", "hello world");
-const data = await store.get("quote"); // 'hello world'
-await store.delete("quote");
-await store.disconnect();
+await store.connect(); // Explicit connection required
 ```
 
 ## Advanced Usage
