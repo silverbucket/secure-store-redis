@@ -7,7 +7,7 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
             - name: Setup Bun
               uses: oven-sh/setup-bun@v2
             - run: bun install
@@ -17,7 +17,7 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
             - name: Setup Bun
               uses: oven-sh/setup-bun@v2
             - run: bun install
@@ -32,13 +32,13 @@ jobs:
 
         steps:
             - name: Checkout repository code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v6
 
             - name: Setup Bun
               uses: oven-sh/setup-bun@v2
 
             - name: Start Redis
-              uses: supercharge/redis-github-action@1.8.0
+              uses: supercharge/redis-github-action@1.8.1
               with:
                   redis-version: ${{ matrix.redis-version }}
 
@@ -56,7 +56,7 @@ jobs:
 
         steps:
             - name: Checkout repository code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v6
 
             - name: Setup Bun
               uses: oven-sh/setup-bun@v2
@@ -67,7 +67,7 @@ jobs:
                   node-version: ${{ matrix.node-version }}
 
             - name: Start Redis
-              uses: supercharge/redis-github-action@1.8.0
+              uses: supercharge/redis-github-action@1.8.1
               with:
                   redis-version: ${{ matrix.redis-version }}
 

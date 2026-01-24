@@ -4,15 +4,11 @@ A simple wrapper to encrypt and decrypt data stored in redis.
 The main point is to ensure that any data you store in redis cannot be accessed
 by anyone else, without the key.
 
-## v4.0.0 Breaking Changes
+## Installation
 
-- **Redis client**: Switched from `node-redis` to `ioredis` for better error handling and reconnection logic
-- **Node.js**: Minimum version is now Node 20
-- **TypeScript**: Strict null checks enabled
-
-The `client` property type has changed from `RedisClientType` to `Redis` (ioredis). The `{ url: "redis://..." }` configuration format is still supported for backward compatibility.
-
-## API Reference
+```bash
+npm install secure-store-redis
+```
 
 ### Constructor
 
