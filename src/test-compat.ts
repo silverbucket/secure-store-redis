@@ -23,35 +23,36 @@ type TestCompat = {
 
 const isBun = typeof Bun !== "undefined";
 
-const { describe, test, afterAll, expect } = await (async (): Promise<TestCompat> => {
-    if (isBun) {
-        // Use bun:test
-        const bunTest = await import("bun:test");
-        return {
-            describe: bunTest.describe,
-            test: bunTest.test,
-            afterAll: bunTest.afterAll,
-            expect: bunTest.expect,
-        };
-    } else {
-        // Use node:test and node:assert
-        const nodeTest = await import("node:test");
-        const assert = await import("node:assert");
+const { describe, test, afterAll, expect } =
+    await (async (): Promise<TestCompat> => {
+        if (isBun) {
+            // Use bun:test
+            const bunTest = await import("bun:test");
+            return {
+                describe: bunTest.describe,
+                test: bunTest.test,
+                afterAll: bunTest.afterAll,
+                expect: bunTest.expect,
+            };
+        } else {
+            // Use node:test and node:assert
+            const nodeTest = await import("node:test");
+            const assert = await import("node:assert");
 
-        // Create expect wrapper around node:assert
-        const expectFn: ExpectFn = (actual: unknown): Expect => ({
-            toEqual(expected: unknown) {
-                assert.deepStrictEqual(actual, expected);
-            },
-        });
+            // Create expect wrapper around node:assert
+            const expectFn: ExpectFn = (actual: unknown): Expect => ({
+                toEqual(expected: unknown) {
+                    assert.deepStrictEqual(actual, expected);
+                },
+            });
 
-        return {
-            describe: nodeTest.describe,
-            test: nodeTest.it,
-            afterAll: nodeTest.after,
-            expect: expectFn,
-        };
-    }
-})();
+            return {
+                describe: nodeTest.describe,
+                test: nodeTest.it,
+                afterAll: nodeTest.after,
+                expect: expectFn,
+            };
+        }
+    })();
 
 export { describe, test, afterAll, expect };
