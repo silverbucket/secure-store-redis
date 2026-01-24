@@ -219,27 +219,6 @@ export default class SecureStore {
         if (typeof cfg.redis !== "object") {
             cfg.redis = {};
         }
-        if (typeof cfg.uid !== "undefined") {
-            if (typeof cfg.uid !== "string") {
-                throw new ValidationError(
-                    "If specifying a UID, it must be a string",
-                );
-            }
-        } else {
-            cfg.uid = randomBytes(4).toString("hex");
-        }
-        if (typeof cfg.secret !== "undefined") {
-            if (!cfg.allowWeakSecrets) {
-                const validation = SecretValidator.validate(cfg.secret);
-                if (!validation.valid) {
-                    throw new ValidationError(
-                        `Invalid secret: ${validation.reason}. Set allowWeakSecrets: true to bypass validation.`,
-                    );
-                }
-            }
-        } else {
-            cfg.secret = SecretValidator.generate();
-        }
         // Set default for allowWeakSecrets
         cfg.allowWeakSecrets = cfg.allowWeakSecrets ?? false;
         this.config = cfg as Required<SecureStoreConfig>;
