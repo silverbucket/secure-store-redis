@@ -99,11 +99,12 @@ describe("SecureStore", () => {
                 await ss.init();
                 throw new Error("should not arrive here");
             } catch (e) {
-                // ioredis may give different error messages depending on timing
-                const msg = (e as Error).message;
+                // Check for our ConnectionError or underlying Redis error
+                const error = e as Error;
                 expect(
-                    msg.includes("ECONNREFUSED") ||
-                        msg.includes("Connection is closed"),
+                    error.message.includes("Failed to connect to Redis") ||
+                        error.message.includes("ECONNREFUSED") ||
+                        error.message.includes("Connection is closed"),
                 ).toEqual(true);
             }
         });

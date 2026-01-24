@@ -262,10 +262,8 @@ export default class SecureStore {
             }
         } catch (err) {
             log("Failed to decrypt data. ", err);
-            throw new EncryptionError(
-                `Failed to decrypt data for key: ${key}`,
-                err instanceof Error ? err : new Error(String(err)),
-            );
+            // Return null for decryption failures (wrong key, corrupted data) to maintain backward compatibility
+            return null;
         }
     }
 
