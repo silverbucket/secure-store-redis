@@ -8,8 +8,9 @@ import {
 import { Redis, RedisOptions } from "ioredis";
 import debug from "debug";
 
-const ALGORITHM = "aes-256-cbc",
-    IV_LENGTH = 16;
+const ALGORITHM = "aes-256-gcm",
+    IV_LENGTH = 16,
+    AUTH_TAG_LENGTH = 16;
 
 const log = debug("secure-store-redis");
 
@@ -223,7 +224,14 @@ export default class SecureStore {
         let encrypted = cipher.update(data as BinaryLike);
 
         encrypted = Buffer.concat([encrypted, cipher.final()]);
-        return iv.toString("hex") + ":" + encrypted.toString("hex");
+        const authTag = cipher.getAuthTag();
+
+        // Format: iv:auth_tag:encrypted_data
+        return [
+            iv.toString("hex"),
+            authTag.toString("hex"),
+            encrypted.toString("hex"),
+        ].join(":");
     }
 
     /**
@@ -231,20 +239,27 @@ export default class SecureStore {
      */
     private decrypt(encrypted: string): string {
         const parts = encrypted.split(":");
-        const ivPart = parts.shift();
-        if (!ivPart) {
+        if (parts.length !== 3) {
             throw new Error("Invalid encrypted data format");
         }
+
+        const [ivPart, authTagPart, encryptedTextPart] = parts;
         const iv = Buffer.from(ivPart, "hex");
-        const encryptedText = Buffer.from(parts.join(":"), "hex");
+        const authTag = Buffer.from(authTagPart, "hex");
+        const encryptedText = Buffer.from(encryptedTextPart, "hex");
+
         const decipher = createDecipheriv(
             ALGORITHM,
             Buffer.from(this.config.secret),
             iv,
         );
-        let decrypted = decipher.update(encryptedText);
 
+        // Set authentication tag for GCM
+        decipher.setAuthTag(authTag);
+
+        let decrypted = decipher.update(encryptedText);
         decrypted = Buffer.concat([decrypted, decipher.final()]);
+
         return decrypted.toString();
     }
 
