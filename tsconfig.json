@@ -1,31 +1,9 @@
 {
-    "compileOnSave": false,
     "compilerOptions": {
-        "incremental": false,
-        "baseUrl": ".",
-        "moduleResolution": "NodeNext",
         "module": "NodeNext",
-        "target": "ESNext",
-        "lib": ["esnext"],
-        "types": ["node"],
-        "sourceMap": true,
-        "declaration": true,
-        "emitDeclarationOnly": true,
+        "moduleResolution": "NodeNext",
         "esModuleInterop": true,
-        "alwaysStrict": true,
-        "strictNullChecks": true,
-        "noImplicitAny": true,
-        "noImplicitReturns": true,
-        "noImplicitThis": true,
-        "noUnusedLocals": true,
-        "resolveJsonModule": true,
-        "downlevelIteration": true,
-        "allowJs": false,
-        "outDir": "dist",
-        "rootDir": "src",
-        "sourceRoot": "/",
-        "mapRoot": "/"
-    },
-    "include": ["src"],
-    "exclude": ["src/**/*.test.ts", "src/test-compat.ts"]
+        "skipLibCheck": true,
+        "types": ["node"]
+    }
 }

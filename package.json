@@ -37,7 +37,7 @@
         "test:node": "node --import tsx --test src/index.test.ts",
         "lint": "prettier --check . && eslint --max-warnings 0 .",
         "lint:fix": "prettier --write .",
-        "build": "bun build ./src/index.ts --outdir ./dist --target node --format esm && bun x tsc --emitDeclarationOnly",
+        "build": "bun build ./src/index.ts --outdir ./dist --target node --format esm && dts-bundle-generator -o dist/index.d.ts src/index.ts",
         "prepublishOnly": "bun run build"
     },
     "devDependencies": {
@@ -49,6 +49,7 @@
         "@types/node": "22.13.5",
         "@typescript-eslint/eslint-plugin": "8.24.1",
         "@typescript-eslint/parser": "8.24.1",
+        "dts-bundle-generator": "^9.5.1",
         "eslint": "9.21.0",
         "eslint-plugin-security-node": "1.1.4",
         "globals": "^16.5.0",
