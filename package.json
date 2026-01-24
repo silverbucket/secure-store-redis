@@ -5,10 +5,10 @@
     "license": "MIT",
     "private": false,
     "type": "module",
-    "packageManager": "pnpm@10.28.1",
+    "packageManager": "bun@1.x",
     "engines": {
         "node": ">=20",
-        "pnpm": ">=9"
+        "bun": ">=1.0.0"
     },
     "keywords": [
         "redis",
@@ -25,36 +25,43 @@
     },
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "bun": "./src/index.ts",
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
+        }
+    },
     "files": [
         "dist/",
         "src/"
     ],
     "scripts": {
-        "preinstall": "npx only-allow pnpm",
-        "test": "pnpm test:ts && pnpm build && pnpm test:js",
-        "test:ts": "mocha -r ts-node/register src/*.test.ts",
-        "test:js": "mocha dist/*.test.js",
+        "test": "bun test",
+        "test:node": "node --import tsx --test src/index.test.ts",
         "lint": "prettier --check . && eslint --max-warnings 0 .",
         "lint:fix": "prettier --write .",
-        "build": "tsc"
+        "build:js": "bun build ./src/index.ts --outdir ./dist --target node --format esm",
+        "build:types": "dts-bundle-generator -o dist/index.d.ts src/index.ts",
+        "build": "bun run build:js && bun run build:types",
+        "prepublishOnly": "bun run build"
     },
     "devDependencies": {
         "@eslint/eslintrc": "^3.3.3",
         "@eslint/js": "^9.39.2",
-        "@types/chai": "5.0.1",
+        "@types/bun": "^1.3.6",
         "@types/debug": "4.1.12",
         "@types/eslint": "9.6.1",
-        "@types/mocha": "10.0.10",
         "@types/node": "22.13.5",
         "@typescript-eslint/eslint-plugin": "8.24.1",
         "@typescript-eslint/parser": "8.24.1",
-        "chai": "5.2.0",
+        "dts-bundle-generator": "^9.5.1",
         "eslint": "9.21.0",
         "eslint-plugin-security-node": "1.1.4",
         "globals": "^16.5.0",
-        "mocha": "11.1.0",
         "prettier": "3.5.2",
-        "ts-node": "10.9.2",
+        "tsx": "^4.21.0",
         "typescript": "5.7.3"
     },
     "repository": {

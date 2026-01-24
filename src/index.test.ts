@@ -1,6 +1,6 @@
-import { expect } from "chai";
+import { expect, test, describe, afterAll } from "./test-compat.ts";
 
-import SecureStore from "./index.js";
+import SecureStore from "./index.ts";
 
 const complexObj = {
     foo: "bar",
@@ -21,7 +21,7 @@ const tests = [
         test: (store: SecureStore) => {
             return async () => {
                 const res = await store.get("blahblah");
-                expect(res).to.eql(null);
+                expect(res).toEqual(null);
             };
         },
     },
@@ -40,8 +40,8 @@ const tests = [
         test: (store: SecureStore) => {
             return async () => {
                 const res = await store.get("foo");
-                expect(typeof res).to.eql("string");
-                expect(res).to.eql("hallo");
+                expect(typeof res).toEqual("string");
+                expect(res).toEqual("hallo");
             };
         },
     },
@@ -60,8 +60,8 @@ const tests = [
         test: (store: SecureStore) => {
             return async () => {
                 const res = await store.get("foo");
-                expect(typeof res).to.eql("object");
-                expect(res).to.eql({ bar: "baz", wang: "bang" });
+                expect(typeof res).toEqual("object");
+                expect(res).toEqual({ bar: "baz", wang: "bang" });
             };
         },
     },
@@ -80,8 +80,8 @@ const tests = [
         test: (store: SecureStore) => {
             return async () => {
                 const res = await store.get("complex");
-                expect(typeof res).to.eql("object");
-                expect(res).to.eql(complexObj);
+                expect(typeof res).toEqual("object");
+                expect(res).toEqual(complexObj);
             };
         },
     },
@@ -89,7 +89,7 @@ const tests = [
 
 describe("SecureStore", () => {
     describe("Error handling", () => {
-        it("invalid connection config", async () => {
+        test("invalid connection config", async () => {
             const ss = new SecureStore({
                 redis: {
                     url: "redis://127.0.0.1:6378",
@@ -104,7 +104,7 @@ describe("SecureStore", () => {
                 expect(
                     msg.includes("ECONNREFUSED") ||
                         msg.includes("Connection is closed"),
-                ).to.eql(true);
+                ).toEqual(true);
             }
         });
     });
@@ -119,8 +119,8 @@ describe("SecureStore", () => {
         });
 
         describe("First client", () => {
-            for (const test of tests) {
-                it(test.desc, test.test(ss));
+            for (const testCase of tests) {
+                test(testCase.desc, testCase.test(ss));
             }
         });
 
@@ -133,23 +133,23 @@ describe("SecureStore", () => {
                 },
             });
 
-            it("get (wrong store)", async () => {
+            test("get (wrong store)", async () => {
                 const res = await ss2.get("foo");
-                expect(res).to.eql(null);
+                expect(res).toEqual(null);
             });
 
-            after(async () => {
+            afterAll(async () => {
                 await ss2.disconnect();
             });
         });
 
-        after(async () => {
+        afterAll(async () => {
             await ss.disconnect();
         });
     });
 
     describe("Invocations", () => {
-        it("without uid", async () => {
+        test("without uid", async () => {
             const store = new SecureStore({
                 secret: "dh348djgk548fks83kds8kdsfgssgjfg",
                 redis: {
@@ -157,24 +157,24 @@ describe("SecureStore", () => {
                 },
             });
             await store.save("foo", "hello");
-            expect(await store.get("foo")).to.eql("hello");
+            expect(await store.get("foo")).toEqual("hello");
             await store.disconnect();
         });
-        it("no clashing", async () => {
+        test("no clashing", async () => {
             const store = new SecureStore({
                 redis: {
                     url: "redis://127.0.0.1:6379",
                 },
             });
             await store.save("foo", "hello1");
-            expect(await store.get("foo")).to.eql("hello1");
+            expect(await store.get("foo")).toEqual("hello1");
             const store2 = new SecureStore({
                 redis: {
                     url: "redis://127.0.0.1:6379",
                 },
             });
             await store2.save("foo", "hello2");
-            expect(await store2.get("foo")).to.eql("hello2");
+            expect(await store2.get("foo")).toEqual("hello2");
             await store.disconnect();
             await store2.disconnect();
         });
@@ -190,8 +190,8 @@ describe("SecureStore", () => {
         });
 
         describe("First client", () => {
-            for (const test of tests) {
-                it(test.desc, test.test(ss));
+            for (const testCase of tests) {
+                test(testCase.desc, testCase.test(ss));
             }
         });
 
@@ -204,17 +204,17 @@ describe("SecureStore", () => {
                 },
             });
 
-            it("get (wrong store)", async () => {
+            test("get (wrong store)", async () => {
                 const res = await ss2.get("foo");
-                expect(res).to.eql(null);
+                expect(res).toEqual(null);
             });
 
-            after(async () => {
+            afterAll(async () => {
                 await ss2.disconnect();
             });
         });
 
-        after(async () => {
+        afterAll(async () => {
             await ss.disconnect();
         });
     });
@@ -229,19 +229,19 @@ describe("SecureStore", () => {
         });
 
         describe("First client", () => {
-            it("save", async () => {
+            test("save", async () => {
                 await store.save("quote", "hello world");
             });
-            it("get", async () => {
-                expect(await store.get("quote")).to.eql("hello world");
+            test("get", async () => {
+                expect(await store.get("quote")).toEqual("hello world");
             });
-            it("delete", async () => {
-                expect(await store.delete("quote")).to.eql(1);
+            test("delete", async () => {
+                expect(await store.delete("quote")).toEqual(1);
             });
-            it("get deleted item fails", async () => {
-                expect(await store.get("quote")).to.eql(null);
+            test("get deleted item fails", async () => {
+                expect(await store.get("quote")).toEqual(null);
             });
-            it("save", async () => {
+            test("save", async () => {
                 await store.save("quote", "hello world again");
             });
         });
@@ -255,12 +255,12 @@ describe("SecureStore", () => {
                 },
             });
 
-            it("get (wrong store)", async () => {
+            test("get (wrong store)", async () => {
                 const res = await ss2.get("quote");
-                expect(res).to.eql(null);
+                expect(res).toEqual(null);
             });
 
-            after(async () => {
+            afterAll(async () => {
                 await ss2.disconnect();
             });
         });
@@ -274,16 +274,16 @@ describe("SecureStore", () => {
                 },
             });
 
-            it("get data from another store", async () => {
-                expect(await ss3.get("quote")).to.eql("hello world again");
+            test("get data from another store", async () => {
+                expect(await ss3.get("quote")).toEqual("hello world again");
             });
 
-            after(async () => {
+            afterAll(async () => {
                 await ss3.disconnect();
             });
         });
 
-        after(async () => {
+        afterAll(async () => {
             await store.disconnect();
         });
     });

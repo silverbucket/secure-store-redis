@@ -2,4 +2,6 @@ dist
 node_modules
 test
 pnpm-lock.yaml
+bun.lockb
 coverage
+.claude
