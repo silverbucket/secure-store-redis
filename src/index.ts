@@ -5,14 +5,7 @@ import {
     createHash,
     BinaryLike,
 } from "crypto";
-import {
-    createClient,
-    RedisClientOptions,
-    RedisClientType,
-    RedisFunctions,
-    RedisModules,
-    RedisScripts,
-} from "redis";
+import { Redis, RedisOptions } from "ioredis";
 import debug from "debug";
 
 const ALGORITHM = "aes-256-cbc",
@@ -35,7 +28,7 @@ export interface SecureStoreConfig {
     /**
      * Redis connect config object
      */
-    redis?: RedisClientOptions;
+    redis?: RedisOptions | { url: string };
 }
 
 /**
@@ -50,7 +43,7 @@ export default class SecureStore {
     /**
      * Redis client
      */
-    client: RedisClientType<RedisModules, RedisFunctions, RedisScripts>;
+    client: Redis | undefined;
     private readonly config: Required<SecureStoreConfig>;
 
     /**
@@ -84,16 +77,10 @@ export default class SecureStore {
     /**
      * Disconnects the Redis client
      */
-    async disconnect(client = this.client): Promise<void> {
+    async disconnect(client: Redis | undefined = this.client): Promise<void> {
         if (client) {
             log("Redis client quit called");
             await client.quit();
-            try {
-                log("Redis client disconnect called");
-                await client.disconnect();
-            } catch (err) {
-                log("Redis disconnect failed, ignoring. ", err);
-            }
         }
     }
 
@@ -103,21 +90,48 @@ export default class SecureStore {
     async init(): Promise<void> {
         if (!this.client) {
             return new Promise((resolve, reject) => {
-                let error = false;
-                const client = createClient(this.config.redis);
-                client.on("error", async (err) => {
-                    error = true;
-                    log("Redis connection error", err);
-                    this.disconnect(client);
-                    return reject(err);
+                let redisConfig: RedisOptions = {};
+
+                // Compatibility: convert node-redis style { url: "..." } to ioredis format
+                if (
+                    this.config.redis &&
+                    "url" in this.config.redis &&
+                    typeof this.config.redis.url === "string"
+                ) {
+                    const url = new URL(this.config.redis.url);
+                    redisConfig = {
+                        host: url.hostname,
+                        port: url.port ? parseInt(url.port, 10) : 6379,
+                        password: url.password || undefined,
+                        db:
+                            url.pathname.length > 1
+                                ? parseInt(url.pathname.slice(1), 10)
+                                : 0,
+                    };
+                } else if (this.config.redis) {
+                    redisConfig = this.config.redis as RedisOptions;
+                }
+
+                const client = new Redis({
+                    ...redisConfig,
+                    lazyConnect: true,
                 });
-                client.connect().then(() => {
-                    if (!error) {
+
+                client.on("error", (err: Error) => {
+                    log("Redis connection error", err);
+                });
+
+                client
+                    .connect()
+                    .then(() => {
                         log("Connected to Redis");
                         this.client = client;
                         resolve();
-                    }
-                });
+                    })
+                    .catch((err: Error) => {
+                        client.disconnect();
+                        reject(err);
+                    });
             });
         }
     }
@@ -137,17 +151,17 @@ export default class SecureStore {
             try {
                 data = JSON.stringify(data);
             } catch (e) {
-                throw new Error(e);
+                throw new Error(e instanceof Error ? e.message : String(e));
             }
         }
 
         await this.init();
         data = this.encrypt(data);
         const hash = SecureStore.shasum(key);
-        return this.client.HSET(
+        return this.client!.hset(
             this.config.uid + postfix,
             hash,
-            data as Buffer,
+            data as string,
         );
     }
 
@@ -162,7 +176,7 @@ export default class SecureStore {
 
         await this.init();
         const hash = SecureStore.shasum(key);
-        const res = await this.client.HGET(this.config.uid + postfix, hash);
+        const res = await this.client!.hget(this.config.uid + postfix, hash);
         let data;
         if (typeof res === "string") {
             try {
@@ -193,7 +207,7 @@ export default class SecureStore {
         postfix = postfix ? ":" + postfix : "";
         await this.init();
         const hash = SecureStore.shasum(key);
-        return this.client.HDEL(this.config.uid + postfix, hash);
+        return this.client!.hdel(this.config.uid + postfix, hash);
     }
 
     /**
@@ -217,7 +231,11 @@ export default class SecureStore {
      */
     private decrypt(encrypted: string): string {
         const parts = encrypted.split(":");
-        const iv = Buffer.from(parts.shift(), "hex");
+        const ivPart = parts.shift();
+        if (!ivPart) {
+            throw new Error("Invalid encrypted data format");
+        }
+        const iv = Buffer.from(ivPart, "hex");
         const encryptedText = Buffer.from(parts.join(":"), "hex");
         const decipher = createDecipheriv(
             ALGORITHM,
