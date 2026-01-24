@@ -6,60 +6,63 @@ jobs:
     lint:
         runs-on: ubuntu-latest
 
-        strategy:
-            matrix:
-                node-version: [20, 22]
-
         steps:
             - uses: actions/checkout@v4
-            - name: Use Node.js ${{ matrix.node-version }}
-              uses: actions/setup-node@v4
-              with:
-                  node-version: ${{ matrix.node-version }}
-            - run: npm install -g pnpm
-            - run: pnpm install
-            - run: pnpm lint
+            - name: Setup Bun
+              uses: oven-sh/setup-bun@v2
+            - run: bun install
+            - run: bun run lint
 
     build:
         runs-on: ubuntu-latest
 
-        strategy:
-            matrix:
-                node-version: [20, 22]
-
         steps:
             - uses: actions/checkout@v4
-            - name: Use Node.js ${{ matrix.node-version }}
-              uses: actions/setup-node@v4
-              with:
-                  node-version: ${{ matrix.node-version }}
-            - run: npm install -g pnpm
-            - run: pnpm install
-            - run: pnpm build
+            - name: Setup Bun
+              uses: oven-sh/setup-bun@v2
+            - run: bun install
+            - run: bun run build
 
     test:
         runs-on: ubuntu-latest
 
         strategy:
             matrix:
-                node-version: [20, 22]
                 redis-version: [6, 7]
 
         steps:
             - name: Checkout repository code
               uses: actions/checkout@v4
 
-            - name: Use Node.js ${{ matrix.node-version }}
-              uses: actions/setup-node@v4
-              with:
-                  node-version: ${{ matrix.node-version }}
+            - name: Setup Bun
+              uses: oven-sh/setup-bun@v2
 
             - name: Start Redis
               uses: supercharge/redis-github-action@1.8.0
               with:
                   redis-version: ${{ matrix.redis-version }}
 
-            - run: npm install -g pnpm
-            - run: pnpm install
-            - run: pnpm build
-            - run: pnpm test
+            - run: bun install
+            - run: bun run build
+            - run: bun test
+
+    node-compat:
+        runs-on: ubuntu-latest
+        needs: build
+
+        strategy:
+            matrix:
+                node-version: [20, 22]
+
+        steps:
+            - uses: actions/checkout@v4
+            - name: Setup Bun
+              uses: oven-sh/setup-bun@v2
+            - name: Use Node.js ${{ matrix.node-version }}
+              uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ matrix.node-version }}
+            - run: bun install
+            - run: bun run build
+            - name: Verify Node.js can import the built package
+              run: node -e "import('./dist/index.js').then(m => console.log('OK:', typeof m.default))"

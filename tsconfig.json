@@ -7,9 +7,10 @@
         "module": "NodeNext",
         "target": "ESNext",
         "lib": ["esnext"],
-        "types": ["node", "mocha"],
+        "types": ["node"],
         "sourceMap": true,
         "declaration": true,
+        "emitDeclarationOnly": true,
         "esModuleInterop": true,
         "alwaysStrict": true,
         "strictNullChecks": true,
@@ -25,5 +26,6 @@
         "sourceRoot": "/",
         "mapRoot": "/"
     },
-    "include": ["src"]
+    "include": ["src"],
+    "exclude": ["src/**/*.test.ts"]
 }

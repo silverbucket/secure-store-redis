@@ -5,11 +5,6 @@
     "license": "MIT",
     "private": false,
     "type": "module",
-    "packageManager": "pnpm@10.28.1",
-    "engines": {
-        "node": ">=20",
-        "pnpm": ">=9"
-    },
     "keywords": [
         "redis",
         "secure",
@@ -25,36 +20,37 @@
     },
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "bun": "./src/index.ts",
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
+        }
+    },
     "files": [
         "dist/",
         "src/"
     ],
     "scripts": {
-        "preinstall": "npx only-allow pnpm",
-        "test": "pnpm test:ts && pnpm build && pnpm test:js",
-        "test:ts": "mocha -r ts-node/register src/*.test.ts",
-        "test:js": "mocha dist/*.test.js",
+        "test": "bun test",
         "lint": "prettier --check . && eslint --max-warnings 0 .",
         "lint:fix": "prettier --write .",
-        "build": "tsc"
+        "build": "bun build ./src/index.ts --outdir ./dist --target node --format esm && bun x tsc --emitDeclarationOnly",
+        "prepublishOnly": "bun run build"
     },
     "devDependencies": {
         "@eslint/eslintrc": "^3.3.3",
         "@eslint/js": "^9.39.2",
-        "@types/chai": "5.0.1",
         "@types/debug": "4.1.12",
         "@types/eslint": "9.6.1",
-        "@types/mocha": "10.0.10",
         "@types/node": "22.13.5",
         "@typescript-eslint/eslint-plugin": "8.24.1",
         "@typescript-eslint/parser": "8.24.1",
-        "chai": "5.2.0",
         "eslint": "9.21.0",
         "eslint-plugin-security-node": "1.1.4",
         "globals": "^16.5.0",
-        "mocha": "11.1.0",
         "prettier": "3.5.2",
-        "ts-node": "10.9.2",
         "typescript": "5.7.3"
     },
     "repository": {
