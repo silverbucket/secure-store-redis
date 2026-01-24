@@ -64,6 +64,103 @@ export class ValidationError extends SecureStoreError {
 }
 
 /**
+ * Secret validation utilities
+ */
+export class SecretValidator {
+    /**
+     * Calculate Shannon entropy of a string
+     */
+    private static calculateEntropy(secret: string): number {
+        const freq: { [key: string]: number } = {};
+        for (const char of secret) {
+            freq[char] = (freq[char] || 0) + 1;
+        }
+
+        let entropy = 0;
+        for (const count of Object.values(freq)) {
+            const probability = count / secret.length;
+            entropy -= probability * Math.log2(probability);
+        }
+
+        return entropy;
+    }
+
+    /**
+     * Check if secret contains common weak patterns
+     */
+    private static hasWeakPatterns(secret: string): boolean {
+        const weakPatterns = [
+            /^[a-zA-Z]+$/, // all letters
+            /^[0-9]+$/, // all numbers
+            /^(.)\1*$/, // repeated character
+            /^123+/, // sequential numbers
+            /^abc+/i, // sequential letters
+            /^qwerty+/i, // keyboard patterns
+        ];
+
+        return weakPatterns.some((pattern) => pattern.test(secret));
+    }
+
+    /**
+     * Validate secret strength
+     */
+    static validate(secret: string): { valid: boolean; reason?: string } {
+        if (typeof secret !== "string") {
+            return { valid: false, reason: "Secret must be a string" };
+        }
+
+        if (secret.length !== 32) {
+            return {
+                valid: false,
+                reason: "Secret must be exactly 32 characters",
+            };
+        }
+
+        if (this.hasWeakPatterns(secret)) {
+            return {
+                valid: false,
+                reason: "Secret contains common weak patterns",
+            };
+        }
+
+        const entropy = this.calculateEntropy(secret);
+        const minEntropy = 4.0; // Minimum entropy threshold
+
+        if (entropy < minEntropy) {
+            return {
+                valid: false,
+                reason: `Secret entropy too low (${entropy.toFixed(2)} < ${minEntropy})`,
+            };
+        }
+
+        // Check character variety
+        const hasUpperCase = /[A-Z]/.test(secret);
+        const hasLowerCase = /[a-z]/.test(secret);
+        const hasNumbers = /[0-9]/.test(secret);
+        const hasSpecial = /[^a-zA-Z0-9]/.test(secret);
+
+        if (
+            [hasUpperCase, hasLowerCase, hasNumbers, hasSpecial].filter(Boolean)
+                .length < 3
+        ) {
+            return {
+                valid: false,
+                reason: "Secret should contain at least 3 of: uppercase, lowercase, numbers, special characters",
+            };
+        }
+
+        return { valid: true };
+    }
+
+    /**
+     * Generate cryptographically secure secret
+     */
+    static generate(): string {
+        return randomBytes(16).toString("hex");
+    }
+}
+
+/**
  * Possible Config parameters for SecureStore constructor
  */
 export interface SecureStoreConfig {
@@ -79,6 +176,11 @@ export interface SecureStoreConfig {
      * Redis connect config object
      */
     redis?: RedisOptions | { url: string };
+    /**
+     * Allow weak secrets (bypass entropy validation). Not recommended for production.
+     * @default false
+     */
+    allowWeakSecrets?: boolean;
 }
 
 /**
@@ -126,14 +228,19 @@ export default class SecureStore {
             cfg.uid = randomBytes(4).toString("hex");
         }
         if (typeof cfg.secret !== "undefined") {
-            if (typeof cfg.secret !== "string" || cfg.secret.length !== 32) {
-                throw new ValidationError(
-                    `If specifying a secret, it must be a 32 char string (length: ${cfg.secret.length})`,
-                );
+            if (!cfg.allowWeakSecrets) {
+                const validation = SecretValidator.validate(cfg.secret);
+                if (!validation.valid) {
+                    throw new ValidationError(
+                        `Invalid secret: ${validation.reason}. Set allowWeakSecrets: true to bypass validation.`,
+                    );
+                }
             }
         } else {
-            cfg.secret = randomBytes(16).toString("hex");
+            cfg.secret = SecretValidator.generate();
         }
+        // Set default for allowWeakSecrets
+        cfg.allowWeakSecrets = cfg.allowWeakSecrets ?? false;
         this.config = cfg as Required<SecureStoreConfig>;
     }
 

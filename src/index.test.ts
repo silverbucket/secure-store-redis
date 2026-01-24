@@ -152,10 +152,11 @@ describe("SecureStore", () => {
     describe("Invocations", () => {
         test("without uid", async () => {
             const store = new SecureStore({
-                secret: "dh348djgk548fks83kds8kdsfgssgjfg",
+                secret: "dh348djGk548fKs83kDs8kdSfGssgJfg",
                 redis: {
                     url: "redis://127.0.0.1:6379",
                 },
+                allowWeakSecrets: true,
             });
             await store.save("foo", "hello");
             expect(await store.get("foo")).toEqual("hello");
@@ -254,6 +255,7 @@ describe("SecureStore", () => {
                 redis: {
                     url: "redis://localhost:6379",
                 },
+                allowWeakSecrets: true,
             });
 
             test("get (wrong store)", async () => {

@@ -71,11 +71,12 @@ await store.disconnect();
 
 ## Configuration Options
 
-| Option   | Type                            | Required | Default                       | Description                    |
-| -------- | ------------------------------- | -------- | ----------------------------- | ------------------------------ |
-| `uid`    | string                          | No       | Auto-generated (4 hex chars)  | Prefix for Redis keys          |
-| `secret` | string                          | No       | Auto-generated (32 hex chars) | 32-character encryption secret |
-| `redis`  | RedisOptions \| { url: string } | Yes      | -                             | Redis connection configuration |
+| Option             | Type                            | Required | Default                       | Description                            |
+| ------------------ | ------------------------------- | -------- | ----------------------------- | -------------------------------------- |
+| `uid`              | string                          | No       | Auto-generated (4 hex chars)  | Prefix for Redis keys                  |
+| `secret`           | string                          | No       | Auto-generated (32 hex chars) | 32-character encryption secret         |
+| `redis`            | RedisOptions \| { url: string } | Yes      | -                             | Redis connection configuration         |
+| `allowWeakSecrets` | boolean                         | No       | false                         | Allow weak secrets (bypass validation) |
 
 ### Redis Connection Options
 
@@ -100,13 +101,41 @@ redis: {
 - Store secrets in environment variables, not code
 - Rotate secrets periodically in production
 - Use different secrets for different environments
+- Use built-in `SecretValidator.generate()` for secure secrets
 
 ```typescript
 // Good: Environment variable
 const secret = process.env.SECURE_STORE_SECRET;
 
+// Good: Auto-generated strong secret
+import SecureStore, { SecretValidator } from "secure-store-redis";
+const secret = SecretValidator.generate();
+
 // Bad: Hardcoded secret
 const secret = "hardcoded-secret-1234567890123456";
+```
+
+### Secret Validation
+
+By default, secure-store-redis validates secret strength:
+
+- Minimum 4.0 Shannon entropy
+- Mixed character sets (uppercase, lowercase, numbers, special)
+- No common weak patterns (repeated chars, sequences, etc.)
+
+```typescript
+// This will throw ValidationError for weak secret
+const store = new SecureStore({
+    secret: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", // Too weak
+    redis: { url: "redis://localhost:6379" },
+});
+
+// Allow weak secrets (not recommended for production)
+const store = new SecureStore({
+    secret: "weak-secret-but-allowed-12345678",
+    redis: { url: "redis://localhost:6379" },
+    allowWeakSecrets: true,
+});
 ```
 
 ### Encryption
