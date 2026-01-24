@@ -33,6 +33,17 @@ export interface SecureStoreConfig {
 }
 
 /**
+ * Typed namespace interface for type-safe operations
+ */
+export interface TypedNamespace<
+    TSchema extends Record<string, unknown> = Record<string, unknown>,
+> {
+    get<K extends keyof TSchema>(key: K): Promise<TSchema[K] | null>;
+    save<K extends keyof TSchema>(key: K, data: TSchema[K]): Promise<void>;
+    delete<K extends keyof TSchema>(key: K): Promise<number>;
+}
+
+/**
  * SecureStore class
  *
  * Automatically encrypt any data saved to redis
@@ -140,7 +151,7 @@ export default class SecureStore {
     /**
      * Save and encrypt arbitrary data to Redis
      */
-    async save(key: string, data: unknown, postfix = "") {
+    async save<T = unknown>(key: string, data: T, postfix = ""): Promise<void> {
         if (typeof key !== "string") {
             throw new Error("No hash key specified");
         } else if (!data) {
@@ -148,28 +159,27 @@ export default class SecureStore {
         }
         postfix = postfix ? ":" + postfix : "";
 
+        let serializedData: string;
         if (typeof data === "object") {
             try {
-                data = JSON.stringify(data);
+                serializedData = JSON.stringify(data);
             } catch (e) {
                 throw new Error(e instanceof Error ? e.message : String(e));
             }
+        } else {
+            serializedData = String(data);
         }
 
         await this.init();
-        data = this.encrypt(data);
+        const encryptedData = this.encrypt(serializedData);
         const hash = SecureStore.shasum(key);
-        return this.client!.hset(
-            this.config.uid + postfix,
-            hash,
-            data as string,
-        );
+        await this.client!.hset(this.config.uid + postfix, hash, encryptedData);
     }
 
     /**
      * Get and decrypt arbitrary data from Redis
      */
-    async get(key: string, postfix = "") {
+    async get<T = unknown>(key: string, postfix = ""): Promise<T | null> {
         if (typeof key !== "string") {
             throw new Error("No hash key specified");
         }
@@ -178,30 +188,30 @@ export default class SecureStore {
         await this.init();
         const hash = SecureStore.shasum(key);
         const res = await this.client!.hget(this.config.uid + postfix, hash);
-        let data;
-        if (typeof res === "string") {
-            try {
-                data = this.decrypt(res);
-            } catch (err) {
-                log("Failed to decrypt data. ", err);
-                return null;
-            }
+
+        if (typeof res !== "string") {
+            return null;
+        }
+
+        try {
+            const decryptedData = this.decrypt(res);
 
             try {
-                data = JSON.parse(data);
-            } catch (err) {
-                log("Failed to parse dataset as JSON. ", err);
+                return JSON.parse(decryptedData) as T;
+            } catch {
+                // Return as string if JSON parsing fails
+                return decryptedData as T;
             }
-        } else {
-            data = res;
+        } catch (err) {
+            log("Failed to decrypt data. ", err);
+            return null;
         }
-        return data;
     }
 
     /**
      * Delete arbitrary data from Redis
      */
-    async delete(key: string, postfix = "") {
+    async delete<T = unknown>(key: string, postfix = ""): Promise<number> {
         if (typeof key !== "string") {
             throw new Error("No hash key specified");
         }
@@ -261,6 +271,27 @@ export default class SecureStore {
         decrypted = Buffer.concat([decrypted, decipher.final()]);
 
         return decrypted.toString();
+    }
+
+    /**
+     * Create a typed namespace for type-safe operations
+     */
+    namespace<
+        TSchema extends Record<string, unknown> = Record<string, unknown>,
+    >(name: string): TypedNamespace<TSchema> {
+        const postfix = name ? `:${name}` : "";
+
+        return {
+            get: async <K extends keyof TSchema>(key: K) => {
+                return this.get<TSchema[K]>(String(key), postfix);
+            },
+            save: async <K extends keyof TSchema>(key: K, data: TSchema[K]) => {
+                await this.save(String(key), data, postfix);
+            },
+            delete: async <K extends keyof TSchema>(key: K) => {
+                return this.delete(String(key), postfix);
+            },
+        } as TypedNamespace<TSchema>;
     }
 
     /**
