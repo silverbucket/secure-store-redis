@@ -311,27 +311,34 @@ export default class SecureStore {
     private decrypt(encrypted: string): string {
         const parts = encrypted.split(":");
         if (parts.length !== 3) {
-            throw new Error("Invalid encrypted data format");
+            throw new EncryptionError("Invalid encrypted data format");
         }
 
         const [ivPart, authTagPart, encryptedTextPart] = parts;
-        const iv = Buffer.from(ivPart, "hex");
-        const authTag = Buffer.from(authTagPart, "hex");
-        const encryptedText = Buffer.from(encryptedTextPart, "hex");
+        try {
+            const iv = Buffer.from(ivPart, "hex");
+            const authTag = Buffer.from(authTagPart, "hex");
+            const encryptedText = Buffer.from(encryptedTextPart, "hex");
 
-        const decipher = createDecipheriv(
-            ALGORITHM,
-            Buffer.from(this.config.secret),
-            iv,
-        );
+            const decipher = createDecipheriv(
+                ALGORITHM,
+                Buffer.from(this.config.secret),
+                iv,
+            );
 
-        // Set authentication tag for GCM
-        decipher.setAuthTag(authTag);
+            // Set authentication tag for GCM
+            decipher.setAuthTag(authTag);
 
-        let decrypted = decipher.update(encryptedText);
-        decrypted = Buffer.concat([decrypted, decipher.final()]);
+            let decrypted = decipher.update(encryptedText);
+            decrypted = Buffer.concat([decrypted, decipher.final()]);
 
-        return decrypted.toString();
+            return decrypted.toString();
+        } catch (err) {
+            throw new EncryptionError(
+                "Decryption failed - data may be corrupted or using wrong key",
+                err instanceof Error ? err : new Error(String(err)),
+            );
+        }
     }
 
     /**
