@@ -96,7 +96,7 @@ describe("SecureStore", () => {
                 },
             });
             try {
-                await ss.init();
+                await ss.connect();
                 throw new Error("should not arrive here");
             } catch (e) {
                 // Check for our ConnectionError or underlying Redis error
@@ -120,7 +120,7 @@ describe("SecureStore", () => {
         });
 
         beforeAll(async () => {
-            await ss.init();
+            await ss.connect();
         });
 
         describe("First client", () => {
@@ -139,7 +139,7 @@ describe("SecureStore", () => {
             });
 
             beforeAll(async () => {
-                await ss2.init();
+                await ss2.connect();
             });
 
             test("get (wrong store)", async () => {
@@ -168,7 +168,7 @@ describe("SecureStore", () => {
                 },
                 allowWeakSecrets: true,
             });
-            await store.init();
+            await store.connect();
         });
 
         afterAll(async () => {
@@ -179,6 +179,7 @@ describe("SecureStore", () => {
             await store.save("foo", "hello");
             expect(await store.get("foo")).toEqual("hello");
         });
+
         test("no clashing", async () => {
             const store1 = new SecureStore({
                 redis: {
@@ -190,8 +191,8 @@ describe("SecureStore", () => {
                     url: "redis://127.0.0.1:6379",
                 },
             });
-            await store1.init();
-            await store2.init();
+            await store1.connect();
+            await store2.connect();
             await store1.save("foo", "hello1");
             expect(await store1.get("foo")).toEqual("hello1");
             await store2.save("foo", "hello2");
@@ -211,7 +212,7 @@ describe("SecureStore", () => {
         });
 
         beforeAll(async () => {
-            await ss.init();
+            await ss.connect();
         });
 
         afterAll(async () => {
@@ -233,6 +234,10 @@ describe("SecureStore", () => {
                 },
             });
 
+            beforeAll(async () => {
+                await ss2.connect();
+            });
+
             test("get (wrong store)", async () => {
                 const res = await ss2.get("foo");
                 expect(res).toEqual(null);
@@ -241,10 +246,6 @@ describe("SecureStore", () => {
             afterAll(async () => {
                 await ss2.disconnect();
             });
-        });
-
-        afterAll(async () => {
-            await ss.disconnect();
         });
     });
 
@@ -259,7 +260,7 @@ describe("SecureStore", () => {
                     url: "redis://localhost:6379",
                 },
             });
-            await store.init();
+            await store.connect();
         });
 
         afterAll(async () => {
@@ -270,15 +271,19 @@ describe("SecureStore", () => {
             test("save", async () => {
                 await store.save("quote", "hello world");
             });
+
             test("get", async () => {
                 expect(await store.get("quote")).toEqual("hello world");
             });
+
             test("delete", async () => {
-                await store.delete("quote");
+                expect(await store.delete("quote")).toEqual(1);
             });
+
             test("get deleted item fails", async () => {
                 expect(await store.get("quote")).toEqual(null);
             });
+
             test("save", async () => {
                 await store.save("quote", "hello world again");
             });
@@ -295,7 +300,7 @@ describe("SecureStore", () => {
             });
 
             beforeAll(async () => {
-                await ss2.init();
+                await ss2.connect();
             });
 
             test("get (wrong store)", async () => {
@@ -318,7 +323,7 @@ describe("SecureStore", () => {
             });
 
             beforeAll(async () => {
-                await ss3.init();
+                await ss3.connect();
             });
 
             test("get data from another store", async () => {

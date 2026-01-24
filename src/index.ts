@@ -167,7 +167,7 @@ export interface SecureStoreConfig {
     /**
      * A unique ID which can be used to prefix data stored in Redis
      */
-    uid?: string;
+    uid: string;
     /**
      * A 32 character encryption secret, it will be automatically generated if not provided
      */
@@ -264,20 +264,9 @@ export default class SecureStore {
     }
 
     /**
-     * Ensures connection is established before operations
+     * Connects the Redis client to the Redis server
      */
-    private ensureConnected(): void {
-        if (!this.isConnected) {
-            throw new ConnectionError(
-                "Not connected to Redis. Call await store.connect() first.",
-            );
-        }
-    }
-
-    /**
-     * Initializes (connects) the Redis client to the Redis server
-     */
-    async init(): Promise<void> {
+    async connect(): Promise<void> {
         if (!this.client) {
             return new Promise((resolve, reject) => {
                 let redisConfig: RedisOptions = {};
@@ -357,7 +346,11 @@ export default class SecureStore {
             serializedData = String(data);
         }
 
-        this.ensureConnected();
+        if (!this.isConnected) {
+            throw new ConnectionError(
+                "Not connected to Redis. Call await store.connect() first.",
+            );
+        }
         const encryptedData = this.encrypt(serializedData);
         const hash = SecureStore.shasum(key);
         await this.client!.hset(this.config.uid + postfix, hash, encryptedData);
@@ -372,7 +365,11 @@ export default class SecureStore {
         }
         postfix = postfix ? ":" + postfix : "";
 
-        this.ensureConnected();
+        if (!this.isConnected) {
+            throw new ConnectionError(
+                "Not connected to Redis. Call await store.connect() first.",
+            );
+        }
         const hash = SecureStore.shasum(key);
         const res = await this.client!.hget(this.config.uid + postfix, hash);
 
@@ -404,7 +401,11 @@ export default class SecureStore {
             throw new ValidationError("No hash key specified");
         }
         postfix = postfix ? ":" + postfix : "";
-        this.ensureConnected();
+        if (!this.isConnected) {
+            throw new ConnectionError(
+                "Not connected to Redis. Call await store.connect() first.",
+            );
+        }
         const hash = SecureStore.shasum(key);
         return this.client!.hdel(this.config.uid + postfix, hash);
     }
