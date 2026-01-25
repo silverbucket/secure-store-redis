@@ -256,7 +256,7 @@ export default class SecureStore {
         if ("client" in cfg.redis && cfg.redis.client) {
             this.client = cfg.redis.client;
             this.externalClientProvided = true;
-            const status = (this.client as Redis).status;
+            const status = this.client.status;
             if (status === "ready" || status === "connect") {
                 this.connected = true;
             }
@@ -283,11 +283,11 @@ export default class SecureStore {
         client: RedisClient | undefined = this.client,
     ): Promise<void> {
         if (client) {
-            if (!this.externalClientProvided || client !== this.client) {
+            if (this.externalClientProvided && client === this.client) {
+                log("Skipping quit for external client");
+            } else {
                 log("Redis client quit called");
                 await client.quit();
-            } else {
-                log("Skipping quit for external client");
             }
             this.connected = false;
         }
@@ -307,7 +307,7 @@ export default class SecureStore {
     async connect(): Promise<void> {
         // Handle external client
         if (this.externalClientProvided && this.client) {
-            const status = (this.client as Redis).status;
+            const status = this.client.status;
             if (status === "ready") {
                 this.connected = true;
                 return;
@@ -318,7 +318,7 @@ export default class SecureStore {
                 );
             }
             if (status === "wait") {
-                await (this.client as Redis).connect();
+                await this.client.connect();
                 this.connected = true;
                 return;
             }
