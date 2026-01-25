@@ -36,26 +36,25 @@ const { describe, test, beforeAll, afterAll, expect } =
                 afterAll: bunTest.afterAll,
                 expect: bunTest.expect,
             };
-        } else {
-            // Use node:test and node:assert
-            const nodeTest = await import("node:test");
-            const assert = await import("node:assert");
-
-            // Create expect wrapper around node:assert
-            const expectFn: ExpectFn = (actual: unknown): Expect => ({
-                toEqual(expected: unknown) {
-                    assert.deepStrictEqual(actual, expected);
-                },
-            });
-
-            return {
-                describe: nodeTest.describe,
-                test: nodeTest.it,
-                beforeAll: nodeTest.before,
-                afterAll: nodeTest.after,
-                expect: expectFn,
-            };
         }
+        // Use node:test and node:assert
+        const nodeTest = await import("node:test");
+        const assert = await import("node:assert");
+
+        // Create expect wrapper around node:assert
+        const expectFn: ExpectFn = (actual: unknown): Expect => ({
+            toEqual(expected: unknown) {
+                assert.deepStrictEqual(actual, expected);
+            },
+        });
+
+        return {
+            describe: nodeTest.describe,
+            test: nodeTest.it,
+            beforeAll: nodeTest.before,
+            afterAll: nodeTest.after,
+            expect: expectFn,
+        };
     })();
 
 export { describe, test, beforeAll, afterAll, expect };

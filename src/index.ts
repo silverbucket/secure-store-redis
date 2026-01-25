@@ -1,16 +1,16 @@
 import {
-    randomBytes,
+    type BinaryLike,
     createCipheriv,
     createDecipheriv,
     createHash,
-    BinaryLike,
-} from "crypto";
-import { Redis, RedisOptions } from "ioredis";
+    randomBytes,
+} from "node:crypto";
 import debug from "debug";
+import { Redis, type RedisOptions } from "ioredis";
 
-const ALGORITHM = "aes-256-gcm",
-    IV_LENGTH = 16,
-    AUTH_TAG_LENGTH = 16;
+const ALGORITHM = "aes-256-gcm";
+const IV_LENGTH = 16;
+const AUTH_TAG_LENGTH = 16;
 
 const log = debug("secure-store-redis");
 
@@ -116,14 +116,14 @@ export class SecretValidator {
             };
         }
 
-        if (this.hasWeakPatterns(secret)) {
+        if (SecretValidator.hasWeakPatterns(secret)) {
             return {
                 valid: false,
                 reason: "Secret contains common weak patterns",
             };
         }
 
-        const entropy = this.calculateEntropy(secret);
+        const entropy = SecretValidator.calculateEntropy(secret);
         const minEntropy = 4.0; // Minimum entropy threshold
 
         if (entropy < minEntropy) {
@@ -259,11 +259,11 @@ export default class SecureStore {
                     const url = new URL(this.config.redis.url);
                     redisConfig = {
                         host: url.hostname,
-                        port: url.port ? parseInt(url.port, 10) : 6379,
+                        port: url.port ? Number.parseInt(url.port, 10) : 6379,
                         password: url.password || undefined,
                         db:
                             url.pathname.length > 1
-                                ? parseInt(url.pathname.slice(1), 10)
+                                ? Number.parseInt(url.pathname.slice(1), 10)
                                 : 0,
                     };
                 } else if (this.config.redis) {
@@ -307,10 +307,11 @@ export default class SecureStore {
     async save<T = unknown>(key: string, data: T, postfix = ""): Promise<void> {
         if (typeof key !== "string") {
             throw new ValidationError("No hash key specified");
-        } else if (!data) {
+        }
+        if (!data) {
             throw new ValidationError("No data provided, nothing to save");
         }
-        postfix = postfix ? ":" + postfix : "";
+        const suffix = postfix ? `:${postfix}` : "";
 
         let serializedData: string;
         if (typeof data === "object") {
@@ -332,7 +333,7 @@ export default class SecureStore {
         }
         const encryptedData = this.encrypt(serializedData);
         const hash = SecureStore.shasum(key);
-        await this.client!.hset(this.config.uid + postfix, hash, encryptedData);
+        await this.client?.hset(this.config.uid + suffix, hash, encryptedData);
     }
 
     /**
@@ -342,7 +343,7 @@ export default class SecureStore {
         if (typeof key !== "string") {
             throw new ValidationError("No hash key specified");
         }
-        postfix = postfix ? ":" + postfix : "";
+        const suffix = postfix ? `:${postfix}` : "";
 
         if (!this.isConnected) {
             throw new ConnectionError(
@@ -350,7 +351,7 @@ export default class SecureStore {
             );
         }
         const hash = SecureStore.shasum(key);
-        const res = await this.client!.hget(this.config.uid + postfix, hash);
+        const res = await this.client?.hget(this.config.uid + suffix, hash);
 
         if (typeof res !== "string") {
             return null;
@@ -379,14 +380,15 @@ export default class SecureStore {
         if (typeof key !== "string") {
             throw new ValidationError("No hash key specified");
         }
-        postfix = postfix ? ":" + postfix : "";
+        const suffix = postfix ? `:${postfix}` : "";
         if (!this.isConnected) {
             throw new ConnectionError(
                 "Not connected to Redis. Call await store.connect() first.",
             );
         }
         const hash = SecureStore.shasum(key);
-        return this.client!.hdel(this.config.uid + postfix, hash);
+        // biome-ignore lint/style/noNonNullAssertion: client is guaranteed to exist after isConnected check
+        return this.client!.hdel(this.config.uid + suffix, hash);
     }
 
     /**
