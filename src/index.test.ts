@@ -488,9 +488,27 @@ describe("SecureStore", () => {
 
     describe("SecretValidator", () => {
 
-        test("generate creates 32-character string", () => {
+        test("generate creates 32-character string by default", () => {
             const secret = SecretValidator.generate();
             expect(secret.length).toEqual(32);
+        });
+
+        test("generate creates string of specified length", () => {
+            const secret16 = SecretValidator.generate(16);
+            expect(secret16.length).toEqual(16);
+            
+            const secret64 = SecretValidator.generate(64);
+            expect(secret64.length).toEqual(64);
+        });
+
+        test("concatenated secrets pass validation", () => {
+            const part1 = SecretValidator.generate(16);
+            const part2 = SecretValidator.generate(16);
+            const concatenated = part1 + part2;
+            
+            expect(concatenated.length).toEqual(32);
+            const result = SecretValidator.validate(concatenated);
+            expect(result.valid).toEqual(true);
         });
 
         test("validate rejects short secrets", () => {
