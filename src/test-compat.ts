@@ -10,6 +10,7 @@ type HookFn = (fn: () => void | Promise<void>) => void;
 
 interface Expect {
     toEqual(expected: unknown): void;
+    toBe(expected: unknown): void;
     toContain(expected: unknown): void;
     toBeDefined(): void;
     toThrow(expected?: string | RegExp): void;
@@ -51,6 +52,9 @@ const { describe, test, beforeAll, afterAll, expect } =
         const expectFn: ExpectFn = (actual: unknown): Expect => ({
             toEqual(expected: unknown) {
                 assert.deepStrictEqual(actual, expected);
+            },
+            toBe(expected: unknown) {
+                assert.strictEqual(actual, expected);
             },
             toContain(expected: unknown) {
                 assert.ok(

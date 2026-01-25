@@ -6,7 +6,13 @@ import {
     randomBytes,
 } from "node:crypto";
 import debug from "debug";
-import { Redis, type RedisOptions } from "ioredis";
+import { type Cluster, Redis, type RedisOptions } from "ioredis";
+
+/**
+ * A Redis-like client that supports the commands SecureStore needs.
+ * Can be either a standard Redis client or a Redis Cluster client.
+ */
+export type RedisClient = Redis | Cluster;
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 16;
@@ -192,9 +198,17 @@ export interface SecureStoreConfig {
      */
     secret: string;
     /**
-     * Redis connect config object
+     * Redis connection configuration. Accepts one of:
+     * - `RedisOptions`: ioredis connection options (host, port, etc.)
+     * - `{ url: string }`: Redis connection URL
+     * - `{ client: RedisClient }`: An existing Redis or Cluster client instance
+     *
+     * When providing an external client:
+     * - SecureStore will NOT close the client on `disconnect()` - you manage its lifecycle
+     * - The client should be connected or in a connectable state
+     * - Both `Redis` and `Cluster` clients are supported
      */
-    redis: RedisOptions | { url: string };
+    redis: RedisOptions | { url: string } | { client: RedisClient };
     /**
      * Allow weak secrets (bypass entropy validation). Not recommended for production.
      * @default false
@@ -225,9 +239,10 @@ export default class SecureStore {
     /**
      * Redis client
      */
-    client: Redis | undefined;
+    client: RedisClient | undefined;
     private readonly config: Required<SecureStoreConfig>;
     private connected = false;
+    private externalClientProvided = false;
 
     /**
      * Creates an instance of SecureStore.
@@ -237,6 +252,11 @@ export default class SecureStore {
     constructor(cfg: SecureStoreConfig) {
         if (typeof cfg.redis !== "object") {
             cfg.redis = {};
+        }
+        // Check for external client before secret validation
+        if ("client" in cfg.redis && cfg.redis.client) {
+            this.client = cfg.redis.client;
+            this.externalClientProvided = true;
         }
         // Validate secret unless allowWeakSecrets is true
         if (!cfg.allowWeakSecrets) {
@@ -252,12 +272,20 @@ export default class SecureStore {
     }
 
     /**
-     * Disconnects the Redis client
+     * Disconnects the Redis client.
+     * If using an external client (passed via `{ client: RedisClient }`),
+     * this method will NOT close the connection - you manage its lifecycle.
      */
-    async disconnect(client: Redis | undefined = this.client): Promise<void> {
+    async disconnect(
+        client: RedisClient | undefined = this.client,
+    ): Promise<void> {
         if (client) {
-            log("Redis client quit called");
-            await client.quit();
+            if (this.externalClientProvided && client === this.client) {
+                log("Skipping quit for external client");
+            } else {
+                log("Redis client quit called");
+                await client.quit();
+            }
             this.connected = false;
         }
     }
@@ -270,9 +298,50 @@ export default class SecureStore {
     }
 
     /**
-     * Connects the Redis client to the Redis server
+     * Connects the Redis client to the Redis server.
+     * If using an external client, ensures the client is ready.
      */
     async connect(): Promise<void> {
+        // Handle external client
+        if (this.externalClientProvided && this.client) {
+            const status = this.client.status;
+            if (status === "ready") {
+                this.connected = true;
+                return;
+            }
+            // "end" is the terminal state after quit(). "close" can occur from
+            // connection errors or manual disconnect. Both indicate unusable client.
+            if (status === "close" || status === "end") {
+                throw new ConnectionError(
+                    "External Redis client is closed. Provide a connected client or reconnect before calling connect().",
+                );
+            }
+            // wait/connecting/reconnecting - wait for ready event
+            return new Promise((resolve, reject) => {
+                const onReady = () => {
+                    this.client?.off("error", onError);
+                    this.connected = true;
+                    resolve();
+                };
+                const onError = (err: Error) => {
+                    this.client?.off("ready", onReady);
+                    reject(
+                        new ConnectionError(
+                            "External client failed to connect",
+                            err,
+                        ),
+                    );
+                };
+                this.client?.once("ready", onReady);
+                this.client?.once("error", onError);
+                // Initiate connection if client is waiting (lazyConnect)
+                if (status === "wait") {
+                    this.client?.connect().catch(onError);
+                }
+            });
+        }
+
+        // Create internal client
         if (!this.client) {
             return new Promise((resolve, reject) => {
                 let redisConfig: RedisOptions = {};
@@ -294,7 +363,10 @@ export default class SecureStore {
                                 ? Number.parseInt(url.pathname.slice(1), 10)
                                 : 0,
                     };
-                } else if (this.config.redis) {
+                } else if (
+                    this.config.redis &&
+                    !("client" in this.config.redis)
+                ) {
                     redisConfig = this.config.redis as RedisOptions;
                 }
 
