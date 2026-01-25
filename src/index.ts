@@ -159,10 +159,19 @@ export class SecretValidator {
     static generate(): string {
         const chars =
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-        const bytes = randomBytes(32);
+        const charsLength = chars.length;
+        // Use rejection sampling to avoid modulo bias
+        const maxValidByte = 256 - (256 % charsLength);
+
         let secret = "";
-        for (let i = 0; i < 32; i++) {
-            secret += chars[bytes[i] % chars.length];
+        while (secret.length < 32) {
+            const bytes = randomBytes(64);
+            for (const byte of bytes) {
+                if (byte < maxValidByte) {
+                    secret += chars[byte % charsLength];
+                    if (secret.length === 32) break;
+                }
+            }
         }
         return secret;
     }
