@@ -153,10 +153,11 @@ export class SecretValidator {
     }
 
     /**
-     * Generate cryptographically secure 32-character secret.
+     * Generate cryptographically secure secret.
      * Uses a mix of uppercase, lowercase, numbers, and special characters.
+     * @param length - Number of characters to generate (defaults to 32)
      */
-    static generate(): string {
+    static generate(length = 32): string {
         const chars =
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
         const charsLength = chars.length;
@@ -164,12 +165,12 @@ export class SecretValidator {
         const maxValidByte = 256 - (256 % charsLength);
 
         let secret = "";
-        while (secret.length < 32) {
+        while (secret.length < length) {
             const bytes = randomBytes(64);
             for (const byte of bytes) {
                 if (byte < maxValidByte) {
                     secret += chars[byte % charsLength];
-                    if (secret.length === 32) break;
+                    if (secret.length === length) break;
                 }
             }
         }
