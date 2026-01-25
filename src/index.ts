@@ -257,9 +257,6 @@ export default class SecureStore {
         if ("client" in cfg.redis && cfg.redis.client) {
             this.client = cfg.redis.client;
             this.externalClientProvided = true;
-            if (this.client.status === "ready") {
-                this.connected = true;
-            }
         }
         // Validate secret unless allowWeakSecrets is true
         if (!cfg.allowWeakSecrets) {
