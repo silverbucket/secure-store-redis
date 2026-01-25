@@ -182,11 +182,15 @@ describe("SecureStore", () => {
 
         test("no clashing", async () => {
             const store1 = new SecureStore({
+                uid: "no-clash-test-1",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
                 redis: {
                     url: "redis://127.0.0.1:6379",
                 },
             });
             const store2 = new SecureStore({
+                uid: "no-clash-test-2",
+                secret: "923HD8DG26JA0LK1239Hgb651TWfs0j2",
                 redis: {
                     url: "redis://127.0.0.1:6379",
                 },
