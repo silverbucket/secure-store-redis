@@ -256,8 +256,7 @@ export default class SecureStore {
         if ("client" in cfg.redis && cfg.redis.client) {
             this.client = cfg.redis.client;
             this.externalClientProvided = true;
-            const status = this.client.status;
-            if (status === "ready" || status === "connect") {
+            if (this.client.status === "ready") {
                 this.connected = true;
             }
         }
@@ -317,12 +316,7 @@ export default class SecureStore {
                     "External Redis client is closed. Provide a connected client or reconnect before calling connect().",
                 );
             }
-            if (status === "wait") {
-                await this.client.connect();
-                this.connected = true;
-                return;
-            }
-            // connecting/reconnecting - wait for ready
+            // wait/connecting/reconnecting - wait for ready event
             return new Promise((resolve, reject) => {
                 const onReady = () => {
                     this.client?.off("error", onError);
@@ -340,6 +334,10 @@ export default class SecureStore {
                 };
                 this.client?.once("ready", onReady);
                 this.client?.once("error", onError);
+                // Initiate connection if client is waiting (lazyConnect)
+                if (status === "wait") {
+                    this.client?.connect().catch(onError);
+                }
             });
         }
 
