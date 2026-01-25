@@ -375,7 +375,7 @@ export default class SecureStore {
     /**
      * Delete arbitrary data from Redis
      */
-    async delete<T = unknown>(key: string, postfix = ""): Promise<number> {
+    async delete(key: string, postfix = ""): Promise<number> {
         if (typeof key !== "string") {
             throw new ValidationError("No hash key specified");
         }
@@ -398,6 +398,7 @@ export default class SecureStore {
             ALGORITHM,
             Buffer.from(this.config.secret),
             iv,
+            { authTagLength: AUTH_TAG_LENGTH },
         );
         let encrypted = cipher.update(data as BinaryLike);
 
@@ -431,6 +432,7 @@ export default class SecureStore {
                 ALGORITHM,
                 Buffer.from(this.config.secret),
                 iv,
+                { authTagLength: AUTH_TAG_LENGTH },
             );
 
             // Set authentication tag for GCM
