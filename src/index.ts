@@ -8,10 +8,157 @@ import {
 import { Redis, RedisOptions } from "ioredis";
 import debug from "debug";
 
-const ALGORITHM = "aes-256-cbc",
-    IV_LENGTH = 16;
+const ALGORITHM = "aes-256-gcm",
+    IV_LENGTH = 16,
+    AUTH_TAG_LENGTH = 16;
 
 const log = debug("secure-store-redis");
+
+/**
+ * Base error class for SecureStore
+ */
+export class SecureStoreError extends Error {
+    constructor(
+        message: string,
+        public readonly code?: string,
+    ) {
+        super(message);
+        this.name = "SecureStoreError";
+    }
+}
+
+/**
+ * Connection-related errors
+ */
+export class ConnectionError extends SecureStoreError {
+    constructor(message: string, cause?: Error) {
+        super(message, "CONNECTION_ERROR");
+        this.name = "ConnectionError";
+        if (cause) {
+            this.cause = cause;
+        }
+    }
+}
+
+/**
+ * Encryption/decryption errors
+ */
+export class EncryptionError extends SecureStoreError {
+    constructor(message: string, cause?: Error) {
+        super(message, "ENCRYPTION_ERROR");
+        this.name = "EncryptionError";
+        if (cause) {
+            this.cause = cause;
+        }
+    }
+}
+
+/**
+ * Configuration validation errors
+ */
+export class ValidationError extends SecureStoreError {
+    constructor(message: string) {
+        super(message, "VALIDATION_ERROR");
+        this.name = "ValidationError";
+    }
+}
+
+/**
+ * Secret validation utilities
+ */
+export class SecretValidator {
+    /**
+     * Calculate Shannon entropy of a string
+     */
+    private static calculateEntropy(secret: string): number {
+        const freq: { [key: string]: number } = {};
+        for (const char of secret) {
+            freq[char] = (freq[char] || 0) + 1;
+        }
+
+        let entropy = 0;
+        for (const count of Object.values(freq)) {
+            const probability = count / secret.length;
+            entropy -= probability * Math.log2(probability);
+        }
+
+        return entropy;
+    }
+
+    /**
+     * Check if secret contains common weak patterns
+     */
+    private static hasWeakPatterns(secret: string): boolean {
+        const weakPatterns = [
+            /^[a-zA-Z]+$/, // all letters
+            /^[0-9]+$/, // all numbers
+            /^(.)\1*$/, // repeated character
+            /^123+/, // sequential numbers
+            /^abc+/i, // sequential letters
+            /^qwerty+/i, // keyboard patterns
+        ];
+
+        return weakPatterns.some((pattern) => pattern.test(secret));
+    }
+
+    /**
+     * Validate secret strength
+     */
+    static validate(secret: string): { valid: boolean; reason?: string } {
+        if (typeof secret !== "string") {
+            return { valid: false, reason: "Secret must be a string" };
+        }
+
+        if (secret.length !== 32) {
+            return {
+                valid: false,
+                reason: "Secret must be exactly 32 characters",
+            };
+        }
+
+        if (this.hasWeakPatterns(secret)) {
+            return {
+                valid: false,
+                reason: "Secret contains common weak patterns",
+            };
+        }
+
+        const entropy = this.calculateEntropy(secret);
+        const minEntropy = 4.0; // Minimum entropy threshold
+
+        if (entropy < minEntropy) {
+            return {
+                valid: false,
+                reason: `Secret entropy too low (${entropy.toFixed(2)} < ${minEntropy})`,
+            };
+        }
+
+        // Check character variety
+        const hasUpperCase = /[A-Z]/.test(secret);
+        const hasLowerCase = /[a-z]/.test(secret);
+        const hasNumbers = /[0-9]/.test(secret);
+        const hasSpecial = /[^a-zA-Z0-9]/.test(secret);
+
+        if (
+            [hasUpperCase, hasLowerCase, hasNumbers, hasSpecial].filter(Boolean)
+                .length < 3
+        ) {
+            return {
+                valid: false,
+                reason: "Secret should contain at least 3 of: uppercase, lowercase, numbers, special characters",
+            };
+        }
+
+        return { valid: true };
+    }
+
+    /**
+     * Generate cryptographically secure secret
+     */
+    static generate(): string {
+        return randomBytes(16).toString("hex");
+    }
+}
 
 /**
  * Possible Config parameters for SecureStore constructor
@@ -20,7 +167,7 @@ export interface SecureStoreConfig {
     /**
      * A unique ID which can be used to prefix data stored in Redis
      */
-    uid?: string;
+    uid: string;
     /**
      * A 32 character encryption secret, it will be automatically generated if not provided
      */
@@ -28,7 +175,23 @@ export interface SecureStoreConfig {
     /**
      * Redis connect config object
      */
-    redis?: RedisOptions | { url: string };
+    redis: RedisOptions | { url: string };
+    /**
+     * Allow weak secrets (bypass entropy validation). Not recommended for production.
+     * @default false
+     */
+    allowWeakSecrets?: boolean;
+}
+
+/**
+ * Typed namespace interface for type-safe operations
+ */
+export interface TypedNamespace<
+    TSchema extends Record<string, unknown> = Record<string, unknown>,
+> {
+    get<K extends keyof TSchema>(key: K): Promise<TSchema[K] | null>;
+    save<K extends keyof TSchema>(key: K, data: TSchema[K]): Promise<void>;
+    delete<K extends keyof TSchema>(key: K): Promise<number>;
 }
 
 /**
@@ -45,6 +208,7 @@ export default class SecureStore {
      */
     client: Redis | undefined;
     private readonly config: Required<SecureStoreConfig>;
+    private connected = false;
 
     /**
      * Creates an instance of SecureStore.
@@ -55,22 +219,8 @@ export default class SecureStore {
         if (typeof cfg.redis !== "object") {
             cfg.redis = {};
         }
-        if (typeof cfg.uid !== "undefined") {
-            if (typeof cfg.uid !== "string") {
-                throw new Error("If specifying a UID, it must be a string");
-            }
-        } else {
-            cfg.uid = randomBytes(4).toString("hex");
-        }
-        if (typeof cfg.secret !== "undefined") {
-            if (typeof cfg.secret !== "string" || cfg.secret.length !== 32) {
-                throw new Error(
-                    `If specifying a secret, it must be a 32 char string (length: ${cfg.secret.length})`,
-                );
-            }
-        } else {
-            cfg.secret = randomBytes(16).toString("hex");
-        }
+        // Set default for allowWeakSecrets
+        cfg.allowWeakSecrets = cfg.allowWeakSecrets ?? false;
         this.config = cfg as Required<SecureStoreConfig>;
     }
 
@@ -81,13 +231,21 @@ export default class SecureStore {
         if (client) {
             log("Redis client quit called");
             await client.quit();
+            this.connected = false;
         }
     }
 
     /**
-     * Initializes (connects) the Redis client to the Redis server
+     * Check if connected to Redis
      */
-    async init(): Promise<void> {
+    get isConnected(): boolean {
+        return this.connected && this.client !== undefined;
+    }
+
+    /**
+     * Connects the Redis client to the Redis server
+     */
+    async connect(): Promise<void> {
         if (!this.client) {
             return new Promise((resolve, reject) => {
                 let redisConfig: RedisOptions = {};
@@ -126,11 +284,18 @@ export default class SecureStore {
                     .then(() => {
                         log("Connected to Redis");
                         this.client = client;
+                        this.connected = true;
                         resolve();
                     })
                     .catch((err: Error) => {
                         client.disconnect();
-                        reject(err);
+                        this.connected = false;
+                        reject(
+                            new ConnectionError(
+                                "Failed to connect to Redis",
+                                err,
+                            ),
+                        );
                     });
             });
         }
@@ -139,73 +304,87 @@ export default class SecureStore {
     /**
      * Save and encrypt arbitrary data to Redis
      */
-    async save(key: string, data: unknown, postfix = "") {
+    async save<T = unknown>(key: string, data: T, postfix = ""): Promise<void> {
         if (typeof key !== "string") {
-            throw new Error("No hash key specified");
+            throw new ValidationError("No hash key specified");
         } else if (!data) {
-            throw new Error("No data provided, nothing to save");
+            throw new ValidationError("No data provided, nothing to save");
         }
         postfix = postfix ? ":" + postfix : "";
 
+        let serializedData: string;
         if (typeof data === "object") {
             try {
-                data = JSON.stringify(data);
+                serializedData = JSON.stringify(data);
             } catch (e) {
-                throw new Error(e instanceof Error ? e.message : String(e));
+                throw new ValidationError(
+                    e instanceof Error ? e.message : String(e),
+                );
             }
+        } else {
+            serializedData = String(data);
         }
 
-        await this.init();
-        data = this.encrypt(data);
+        if (!this.isConnected) {
+            throw new ConnectionError(
+                "Not connected to Redis. Call await store.connect() first.",
+            );
+        }
+        const encryptedData = this.encrypt(serializedData);
         const hash = SecureStore.shasum(key);
-        return this.client!.hset(
-            this.config.uid + postfix,
-            hash,
-            data as string,
-        );
+        await this.client!.hset(this.config.uid + postfix, hash, encryptedData);
     }
 
     /**
      * Get and decrypt arbitrary data from Redis
      */
-    async get(key: string, postfix = "") {
+    async get<T = unknown>(key: string, postfix = ""): Promise<T | null> {
         if (typeof key !== "string") {
-            throw new Error("No hash key specified");
+            throw new ValidationError("No hash key specified");
         }
         postfix = postfix ? ":" + postfix : "";
 
-        await this.init();
+        if (!this.isConnected) {
+            throw new ConnectionError(
+                "Not connected to Redis. Call await store.connect() first.",
+            );
+        }
         const hash = SecureStore.shasum(key);
         const res = await this.client!.hget(this.config.uid + postfix, hash);
-        let data;
-        if (typeof res === "string") {
-            try {
-                data = this.decrypt(res);
-            } catch (err) {
-                log("Failed to decrypt data. ", err);
-                return null;
-            }
+
+        if (typeof res !== "string") {
+            return null;
+        }
+
+        try {
+            const decryptedData = this.decrypt(res);
 
             try {
-                data = JSON.parse(data);
-            } catch (err) {
-                log("Failed to parse dataset as JSON. ", err);
+                return JSON.parse(decryptedData) as T;
+            } catch {
+                // Return as string if JSON parsing fails
+                return decryptedData as T;
             }
-        } else {
-            data = res;
+        } catch (err) {
+            log("Failed to decrypt data. ", err);
+            // Return null for decryption failures (wrong key, corrupted data) to maintain backward compatibility
+            return null;
         }
-        return data;
     }
 
     /**
      * Delete arbitrary data from Redis
      */
-    async delete(key: string, postfix = "") {
+    async delete(key: string, postfix = ""): Promise<number> {
         if (typeof key !== "string") {
-            throw new Error("No hash key specified");
+            throw new ValidationError("No hash key specified");
         }
         postfix = postfix ? ":" + postfix : "";
-        await this.init();
+        if (!this.isConnected) {
+            throw new ConnectionError(
+                "Not connected to Redis. Call await store.connect() first.",
+            );
+        }
         const hash = SecureStore.shasum(key);
         return this.client!.hdel(this.config.uid + postfix, hash);
     }
@@ -219,11 +398,19 @@ export default class SecureStore {
             ALGORITHM,
             Buffer.from(this.config.secret),
             iv,
+            { authTagLength: AUTH_TAG_LENGTH },
         );
         let encrypted = cipher.update(data as BinaryLike);
 
         encrypted = Buffer.concat([encrypted, cipher.final()]);
-        return iv.toString("hex") + ":" + encrypted.toString("hex");
+        const authTag = cipher.getAuthTag();
+
+        // Format: iv:auth_tag:encrypted_data
+        return [
+            iv.toString("hex"),
+            authTag.toString("hex"),
+            encrypted.toString("hex"),
+        ].join(":");
     }
 
     /**
@@ -231,21 +418,57 @@ export default class SecureStore {
      */
     private decrypt(encrypted: string): string {
         const parts = encrypted.split(":");
-        const ivPart = parts.shift();
-        if (!ivPart) {
-            throw new Error("Invalid encrypted data format");
+        if (parts.length !== 3) {
+            throw new EncryptionError("Invalid encrypted data format");
         }
-        const iv = Buffer.from(ivPart, "hex");
-        const encryptedText = Buffer.from(parts.join(":"), "hex");
-        const decipher = createDecipheriv(
-            ALGORITHM,
-            Buffer.from(this.config.secret),
-            iv,
-        );
-        let decrypted = decipher.update(encryptedText);
 
-        decrypted = Buffer.concat([decrypted, decipher.final()]);
-        return decrypted.toString();
+        const [ivPart, authTagPart, encryptedTextPart] = parts;
+        try {
+            const iv = Buffer.from(ivPart, "hex");
+            const authTag = Buffer.from(authTagPart, "hex");
+            const encryptedText = Buffer.from(encryptedTextPart, "hex");
+
+            const decipher = createDecipheriv(
+                ALGORITHM,
+                Buffer.from(this.config.secret),
+                iv,
+                { authTagLength: AUTH_TAG_LENGTH },
+            );
+
+            // Set authentication tag for GCM
+            decipher.setAuthTag(authTag);
+
+            let decrypted = decipher.update(encryptedText);
+            decrypted = Buffer.concat([decrypted, decipher.final()]);
+
+            return decrypted.toString();
+        } catch (err) {
+            throw new EncryptionError(
+                "Decryption failed - data may be corrupted or using wrong key",
+                err instanceof Error ? err : new Error(String(err)),
+            );
+        }
+    }
+
+    /**
+     * Create a typed namespace for type-safe operations
+     */
+    namespace<
+        TSchema extends Record<string, unknown> = Record<string, unknown>,
+    >(name: string): TypedNamespace<TSchema> {
+        const postfix = name ? `:${name}` : "";
+
+        return {
+            get: async <K extends keyof TSchema>(key: K) => {
+                return this.get<TSchema[K]>(String(key), postfix);
+            },
+            save: async <K extends keyof TSchema>(key: K, data: TSchema[K]) => {
+                await this.save(String(key), data, postfix);
+            },
+            delete: async <K extends keyof TSchema>(key: K) => {
+                return this.delete(String(key), postfix);
+            },
+        } as TypedNamespace<TSchema>;
     }
 
     /**
