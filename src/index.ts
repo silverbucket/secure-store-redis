@@ -153,10 +153,27 @@ export class SecretValidator {
     }
 
     /**
-     * Generate cryptographically secure secret
+     * Generate cryptographically secure 32-character secret.
+     * Uses a mix of uppercase, lowercase, numbers, and special characters.
      */
     static generate(): string {
-        return randomBytes(16).toString("hex");
+        const chars =
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+        const charsLength = chars.length;
+        // Use rejection sampling to avoid modulo bias
+        const maxValidByte = 256 - (256 % charsLength);
+
+        let secret = "";
+        while (secret.length < 32) {
+            const bytes = randomBytes(64);
+            for (const byte of bytes) {
+                if (byte < maxValidByte) {
+                    secret += chars[byte % charsLength];
+                    if (secret.length === 32) break;
+                }
+            }
+        }
+        return secret;
     }
 }
 
@@ -165,13 +182,14 @@ export class SecretValidator {
  */
 export interface SecureStoreConfig {
     /**
-     * A unique ID which can be used to prefix data stored in Redis
+     * A unique ID which is used to prefix data stored in Redis.
      */
     uid: string;
     /**
-     * A 32 character encryption secret, it will be automatically generated if not provided
+     * A 32 character encryption secret.
+     * Use SecretValidator.generate() to create a cryptographically secure secret.
      */
-    secret?: string;
+    secret: string;
     /**
      * Redis connect config object
      */
@@ -219,7 +237,15 @@ export default class SecureStore {
         if (typeof cfg.redis !== "object") {
             cfg.redis = {};
         }
-        // Set default for allowWeakSecrets
+        // Validate secret unless allowWeakSecrets is true
+        if (!cfg.allowWeakSecrets) {
+            const validation = SecretValidator.validate(cfg.secret);
+            if (!validation.valid) {
+                throw new ValidationError(
+                    `Invalid secret: ${validation.reason}`,
+                );
+            }
+        }
         cfg.allowWeakSecrets = cfg.allowWeakSecrets ?? false;
         this.config = cfg as Required<SecureStoreConfig>;
     }
@@ -260,6 +286,7 @@ export default class SecureStore {
                     redisConfig = {
                         host: url.hostname,
                         port: url.port ? Number.parseInt(url.port, 10) : 6379,
+                        username: url.username || undefined,
                         password: url.password || undefined,
                         db:
                             url.pathname.length > 1
@@ -308,7 +335,7 @@ export default class SecureStore {
         if (typeof key !== "string") {
             throw new ValidationError("No hash key specified");
         }
-        if (!data) {
+        if (data === undefined || data === null) {
             throw new ValidationError("No data provided, nothing to save");
         }
         const suffix = postfix ? `:${postfix}` : "";
@@ -453,22 +480,26 @@ export default class SecureStore {
     }
 
     /**
-     * Create a typed namespace for type-safe operations
+     * Create a typed namespace for type-safe operations.
+     * Data is stored with the namespace as a postfix to the uid.
      */
     namespace<
         TSchema extends Record<string, unknown> = Record<string, unknown>,
     >(name: string): TypedNamespace<TSchema> {
-        const postfix = name ? `:${name}` : "";
-
+        if (!name || typeof name !== "string") {
+            throw new ValidationError(
+                "Namespace name must be a non-empty string",
+            );
+        }
         return {
             get: async <K extends keyof TSchema>(key: K) => {
-                return this.get<TSchema[K]>(String(key), postfix);
+                return this.get<TSchema[K]>(String(key), name);
             },
             save: async <K extends keyof TSchema>(key: K, data: TSchema[K]) => {
-                await this.save(String(key), data, postfix);
+                await this.save(String(key), data, name);
             },
             delete: async <K extends keyof TSchema>(key: K) => {
-                return this.delete(String(key), postfix);
+                return this.delete(String(key), name);
             },
         } as TypedNamespace<TSchema>;
     }

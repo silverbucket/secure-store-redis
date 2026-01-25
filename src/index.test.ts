@@ -1,6 +1,6 @@
 import { expect, test, describe, afterAll, beforeAll } from "./test-compat.ts";
 
-import SecureStore from "./index.ts";
+import SecureStore, { SecretValidator } from "./index.ts";
 
 const complexObj = {
     foo: "bar",
@@ -91,6 +91,8 @@ describe("SecureStore", () => {
     describe("Error handling", () => {
         test("invalid connection config", async () => {
             const ss = new SecureStore({
+                uid: "error-test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
                 redis: {
                     url: "redis://127.0.0.1:6378",
                 },
@@ -107,6 +109,26 @@ describe("SecureStore", () => {
                         error.message.includes("Connection is closed"),
                 ).toEqual(true);
             }
+        });
+
+        test("weak secret rejected by default", () => {
+            expect(() => {
+                new SecureStore({
+                    uid: "test",
+                    secret: "tooshort",
+                    redis: { url: "redis://127.0.0.1:6379" },
+                });
+            }).toThrow("Invalid secret");
+        });
+
+        test("weak secret allowed with allowWeakSecrets", () => {
+            const ss = new SecureStore({
+                uid: "test",
+                secret: "weakbutallowed",
+                redis: { url: "redis://127.0.0.1:6379" },
+                allowWeakSecrets: true,
+            });
+            expect(ss).toBeDefined();
         });
     });
 
@@ -162,11 +184,11 @@ describe("SecureStore", () => {
 
         beforeAll(async () => {
             store = new SecureStore({
-                secret: "dh348djGk548fKs83kDs8kdSfGssgJfg",
+                uid: "invocations-test",
+                secret: "dh348djGk548fKs83kDs8Kj!@ssgJfg1",
                 redis: {
                     url: "redis://127.0.0.1:6379",
                 },
-                allowWeakSecrets: true,
             });
             await store.connect();
         });
@@ -175,7 +197,7 @@ describe("SecureStore", () => {
             await store.disconnect();
         });
 
-        test("without uid", async () => {
+        test("basic save and get", async () => {
             await store.save("foo", "hello");
             expect(await store.get("foo")).toEqual("hello");
         });
@@ -337,6 +359,155 @@ describe("SecureStore", () => {
             afterAll(async () => {
                 await ss3.disconnect();
             });
+        });
+    });
+
+    describe("Namespace", () => {
+        let store: SecureStore;
+
+        beforeAll(async () => {
+            store = new SecureStore({
+                uid: "namespace-test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: {
+                    url: "redis://127.0.0.1:6379",
+                },
+            });
+            await store.connect();
+        });
+
+        afterAll(async () => {
+            await store.disconnect();
+        });
+
+        test("save and get with namespace", async () => {
+            const users = store.namespace("users");
+            await users.save("profile", { name: "John", age: 30 });
+            const profile = await users.get("profile");
+            expect(profile).toEqual({ name: "John", age: 30 });
+        });
+
+        test("namespaces are isolated from each other", async () => {
+            const users = store.namespace("users");
+            const settings = store.namespace("settings");
+
+            await users.save("key1", "user-value");
+            await settings.save("key1", "settings-value");
+
+            expect(await users.get("key1")).toEqual("user-value");
+            expect(await settings.get("key1")).toEqual("settings-value");
+        });
+
+        test("namespace is isolated from root store", async () => {
+            const ns = store.namespace("isolated");
+            await store.save("rootkey", "root-value");
+            await ns.save("rootkey", "namespace-value");
+
+            expect(await store.get("rootkey")).toEqual("root-value");
+            expect(await ns.get("rootkey")).toEqual("namespace-value");
+        });
+
+        test("delete within namespace", async () => {
+            const ns = store.namespace("delete-test");
+            await ns.save("to-delete", "value");
+            expect(await ns.get("to-delete")).toEqual("value");
+
+            const deleted = await ns.delete("to-delete");
+            expect(deleted).toEqual(1);
+            expect(await ns.get("to-delete")).toEqual(null);
+        });
+
+        test("typed namespace with schema", async () => {
+            interface UserSchema {
+                profile: { name: string; email: string };
+                preferences: { theme: string; notifications: boolean };
+            }
+
+            const users = store.namespace<UserSchema>("typed-users");
+            await users.save("profile", { name: "Jane", email: "jane@example.com" });
+            await users.save("preferences", { theme: "dark", notifications: true });
+
+            const profile = await users.get("profile");
+            const prefs = await users.get("preferences");
+
+            expect(profile).toEqual({ name: "Jane", email: "jane@example.com" });
+            expect(prefs).toEqual({ theme: "dark", notifications: true });
+        });
+
+        test("get non-existent key in namespace returns null", async () => {
+            const ns = store.namespace("empty-ns");
+            expect(await ns.get("nonexistent")).toEqual(null);
+        });
+
+        test("empty namespace name throws error", () => {
+            expect(() => store.namespace("")).toThrow("Namespace name must be a non-empty string");
+        });
+    });
+
+    describe("Falsy values", () => {
+        let store: SecureStore;
+
+        beforeAll(async () => {
+            store = new SecureStore({
+                uid: "falsy-test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: {
+                    url: "redis://127.0.0.1:6379",
+                },
+            });
+            await store.connect();
+        });
+
+        afterAll(async () => {
+            await store.disconnect();
+        });
+
+        test("can store and retrieve 0", async () => {
+            await store.save("zero", 0);
+            expect(await store.get("zero")).toEqual(0);
+        });
+
+        test("can store and retrieve false", async () => {
+            await store.save("false", false);
+            expect(await store.get("false")).toEqual(false);
+        });
+
+        test("can store and retrieve empty string", async () => {
+            await store.save("empty", "");
+            expect(await store.get("empty")).toEqual("");
+        });
+
+        test("null data throws error", async () => {
+            await expect(store.save("null", null)).rejects.toThrow("No data provided");
+        });
+
+        test("undefined data throws error", async () => {
+            await expect(store.save("undefined", undefined)).rejects.toThrow("No data provided");
+        });
+    });
+
+    describe("SecretValidator", () => {
+
+        test("generate creates 32-character string", () => {
+            const secret = SecretValidator.generate();
+            expect(secret.length).toEqual(32);
+        });
+
+        test("validate rejects short secrets", () => {
+            const result = SecretValidator.validate("short");
+            expect(result.valid).toEqual(false);
+            expect(result.reason).toContain("32 characters");
+        });
+
+        test("validate rejects weak patterns", () => {
+            const result = SecretValidator.validate("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+            expect(result.valid).toEqual(false);
+        });
+
+        test("validate accepts strong secrets", () => {
+            const secret = SecretValidator.generate();
+            const result = SecretValidator.validate(secret);
+            expect(result.valid).toEqual(true);
         });
     });
 });
