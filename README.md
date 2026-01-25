@@ -66,6 +66,10 @@ Delete data. Returns count of deleted keys.
 
 Close Redis connection. Optionally pass a specific Redis client to disconnect.
 
+#### `namespace<TSchema>(name: string): TypedNamespace<TSchema>`
+
+Create a typed namespace for organizing data. See [Namespaces](#namespaces) for details.
+
 ### Properties
 
 - `client: Redis | undefined` - The underlying ioredis client
