@@ -43,7 +43,7 @@
         "lint": "prettier --check . && eslint --max-warnings 0 .",
         "lint:fix": "prettier --write .",
         "build:js": "bun build ./src/index.ts --outdir ./dist --target node --format esm",
-        "build:types": "dts-bundle-generator -o dist/index.d.ts src/index.ts",
+        "build:types": "tsc",
         "build": "bun run build:js && bun run build:types",
         "prepublishOnly": "bun run build"
     },

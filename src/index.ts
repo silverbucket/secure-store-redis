@@ -175,7 +175,7 @@ export interface SecureStoreConfig {
     /**
      * Redis connect config object
      */
-    redis?: RedisOptions | { url: string };
+    redis: RedisOptions | { url: string };
     /**
      * Allow weak secrets (bypass entropy validation). Not recommended for production.
      * @default false
