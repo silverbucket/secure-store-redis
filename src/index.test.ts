@@ -603,8 +603,10 @@ describe("SecureStore", () => {
             const redis = new Redis({ host: "127.0.0.1", port: 6379 });
             await redis.ping();
             await redis.quit();
-            // Wait for status to update to "end"
-            await new Promise((resolve) => setTimeout(resolve, 100));
+            // Poll until status changes to "end" (avoid arbitrary delay)
+            while (redis.status !== "end") {
+                await new Promise((resolve) => setTimeout(resolve, 10));
+            }
 
             const store = new SecureStore({
                 uid: "closed-client-test",

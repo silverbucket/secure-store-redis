@@ -311,6 +311,8 @@ export default class SecureStore {
                 this.connected = true;
                 return;
             }
+            // "end" is the terminal state after quit(). "close" can occur from
+            // connection errors or manual disconnect. Both indicate unusable client.
             if (status === "close" || status === "end") {
                 throw new ConnectionError(
                     "External Redis client is closed. Provide a connected client or reconnect before calling connect().",
