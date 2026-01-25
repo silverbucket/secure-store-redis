@@ -41,8 +41,84 @@ new SecureStore(config: SecureStoreConfig)
 | ------------------ | ------------------------------- | -------- | ----------------------------------------------------------------- |
 | `uid`              | string                          | Yes      | Unique prefix for Redis keys (e.g., `"myApp"`, `"myApp:sessions"`) |
 | `secret`           | string                          | Yes      | 32-character encryption secret. Use `SecretValidator.generate()`. |
-| `redis`            | RedisOptions \| { url: string } | Yes      | Redis connection config                                           |
+| `redis`            | RedisOptions \| { url: string } \| { client: Redis \| Cluster } | Yes      | Redis connection config or existing client                        |
 | `allowWeakSecrets` | boolean                         | No       | Bypass secret strength validation (default: false)                |
+
+### Using an Existing Redis Client
+
+You can pass your own ioredis `Redis` or `Cluster` client instead of connection options. This enables connection sharing, pre-configured clients, and integration with existing Redis infrastructure.
+
+```typescript
+import { Redis } from "ioredis";
+import SecureStore, { SecretValidator } from "secure-store-redis";
+
+const redis = new Redis({ host: "localhost", port: 6379 });
+
+const store = new SecureStore({
+    uid: "myApp",
+    secret: SecretValidator.generate(),
+    redis: { client: redis },
+});
+
+await store.connect();
+await store.save("key", "value");
+await store.disconnect();
+
+// Your client is still connected - you manage its lifecycle
+console.log(redis.status); // "ready"
+await redis.quit();
+```
+
+#### Redis Cluster
+
+```typescript
+import { Cluster } from "ioredis";
+import SecureStore, { SecretValidator } from "secure-store-redis";
+
+const cluster = new Cluster([
+    { host: "node1", port: 6379 },
+    { host: "node2", port: 6379 },
+]);
+
+const store = new SecureStore({
+    uid: "myApp",
+    secret: SecretValidator.generate(),
+    redis: { client: cluster },
+});
+
+await store.connect();
+```
+
+#### Sharing Connections
+
+Multiple SecureStore instances can share a single Redis connection:
+
+```typescript
+const redis = new Redis();
+
+const sessionsStore = new SecureStore({
+    uid: "sessions",
+    secret: sessionSecret,
+    redis: { client: redis },
+});
+
+const cacheStore = new SecureStore({
+    uid: "cache",
+    secret: cacheSecret,
+    redis: { client: redis },
+});
+
+await sessionsStore.connect();
+await cacheStore.connect();
+
+// Both stores use the same connection
+// Disconnecting either store does NOT close the Redis client
+```
+
+**Important notes:**
+- When using an external client, `disconnect()` will NOT close the Redis connection - you are responsible for calling `redis.quit()` when done
+- The client can be in any connectable state (ready, connecting, or lazyConnect); `connect()` will wait for it to be ready
+- If the client is already closed, `connect()` will throw a `ConnectionError`
 
 ### Methods
 
@@ -72,7 +148,7 @@ Create a typed namespace for organizing data. See [Namespaces](#namespaces) for 
 
 ### Properties
 
-- `client: Redis | undefined` - The underlying ioredis client
+- `client: RedisClient | undefined` - The underlying ioredis client (Redis or Cluster)
 - `isConnected: boolean` - Connection status
 
 ## Namespaces
@@ -226,6 +302,7 @@ Full TypeScript support with exported types:
 import SecureStore, {
     SecureStoreConfig,
     TypedNamespace,
+    RedisClient,
     SecretValidator,
     SecureStoreError,
     ConnectionError,

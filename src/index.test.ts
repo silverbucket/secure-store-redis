@@ -1,4 +1,5 @@
 import { expect, test, describe, afterAll, beforeAll } from "./test-compat.ts";
+import { Redis } from "ioredis";
 
 import SecureStore, { SecretValidator } from "./index.ts";
 
@@ -508,6 +509,127 @@ describe("SecureStore", () => {
             const secret = SecretValidator.generate();
             const result = SecretValidator.validate(secret);
             expect(result.valid).toEqual(true);
+        });
+    });
+
+    describe("External Redis Client", () => {
+        test("accepts pre-connected Redis client", async () => {
+            const redis = new Redis({ host: "127.0.0.1", port: 6379 });
+            await redis.ping(); // Ensure connected
+
+            const store = new SecureStore({
+                uid: "external-client-test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: { client: redis },
+            });
+
+            await store.connect();
+            expect(store.isConnected).toEqual(true);
+            expect(store.client).toBe(redis);
+
+            await store.save("extKey", "extValue");
+            expect(await store.get("extKey")).toEqual("extValue");
+
+            await store.disconnect();
+            // External client should still be connected
+            expect(redis.status).toEqual("ready");
+
+            await redis.quit();
+        });
+
+        test("accepts Redis client with lazyConnect", async () => {
+            const redis = new Redis({
+                host: "127.0.0.1",
+                port: 6379,
+                lazyConnect: true,
+            });
+
+            const store = new SecureStore({
+                uid: "lazy-client-test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: { client: redis },
+            });
+
+            // Client is in "wait" state, connect() should connect it
+            await store.connect();
+            expect(store.isConnected).toEqual(true);
+
+            await store.save("lazyKey", "lazyValue");
+            expect(await store.get("lazyKey")).toEqual("lazyValue");
+
+            await store.disconnect();
+            expect(redis.status).toEqual("ready");
+
+            await redis.quit();
+        });
+
+        test("multiple stores share one client", async () => {
+            const redis = new Redis({ host: "127.0.0.1", port: 6379 });
+            await redis.ping();
+
+            const store1 = new SecureStore({
+                uid: "shared-client-1",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: { client: redis },
+            });
+
+            const store2 = new SecureStore({
+                uid: "shared-client-2",
+                secret: "923HD8DG26JA0LK1239Hgb651TWfs0j2",
+                redis: { client: redis },
+            });
+
+            await store1.connect();
+            await store2.connect();
+
+            await store1.save("key", "value1");
+            await store2.save("key", "value2");
+
+            expect(await store1.get("key")).toEqual("value1");
+            expect(await store2.get("key")).toEqual("value2");
+
+            await store1.disconnect();
+            // Redis should still be connected after store1 disconnect
+            expect(redis.status).toEqual("ready");
+            expect(store2.isConnected).toEqual(true);
+
+            await store2.disconnect();
+            expect(redis.status).toEqual("ready");
+
+            await redis.quit();
+        });
+
+        test("throws error if external client is closed", async () => {
+            const redis = new Redis({ host: "127.0.0.1", port: 6379 });
+            await redis.ping();
+            await redis.quit();
+            // Wait for status to update to "end"
+            await new Promise((resolve) => setTimeout(resolve, 100));
+
+            const store = new SecureStore({
+                uid: "closed-client-test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: { client: redis },
+            });
+
+            await expect(store.connect()).rejects.toThrow(
+                "External Redis client is closed",
+            );
+        });
+
+        test("exposes external client via client property", async () => {
+            const redis = new Redis({ host: "127.0.0.1", port: 6379 });
+            await redis.ping();
+
+            const store = new SecureStore({
+                uid: "client-property-test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: { client: redis },
+            });
+
+            expect(store.client).toBe(redis);
+
+            await redis.quit();
         });
     });
 });
