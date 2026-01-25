@@ -133,18 +133,15 @@ await store.get("data");    // null (root store is separate)
 
 Utility class for generating and validating encryption secrets.
 
-```typescript
-import { SecretValidator } from "secure-store-redis";
+### Methods
 
-// Generate a secure 32-character secret
-const secret = SecretValidator.generate();
+#### `generate(length?: number): string`
 
-// Validate secret strength
-const result = SecretValidator.validate(secret);
-if (!result.valid) {
-    console.error(result.reason);
-}
-```
+Generate a cryptographically secure secret. Defaults to 32 characters if no length specified.
+
+#### `validate(secret: string): { valid: boolean; reason?: string }`
+
+Validate secret strength against security requirements.
 
 ### Validation Rules
 
