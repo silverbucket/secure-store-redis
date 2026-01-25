@@ -157,7 +157,7 @@ export class SecretValidator {
      * Uses a mix of uppercase, lowercase, numbers, and special characters.
      * @param length - Number of characters to generate (defaults to 32)
      */
-    static generate(length: number = 32): string {
+    static generate(length = 32): string {
         const chars =
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
         const charsLength = chars.length;
