@@ -229,6 +229,31 @@ describe("SecureStore", () => {
         });
     });
 
+    describe("Reconnect", () => {
+        test("connect works after disconnect with internal client", async () => {
+            const store = new SecureStore({
+                uid: "reconnect-test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: {
+                    url: "redis://127.0.0.1:6379",
+                },
+            });
+
+            await store.connect();
+            await store.save("first", "value1");
+            expect(await store.get("first")).toEqual("value1");
+
+            await store.disconnect();
+            expect(store.isConnected).toEqual(false);
+
+            await store.connect();
+            await store.save("second", "value2");
+            expect(await store.get("second")).toEqual("value2");
+
+            await store.disconnect();
+        });
+    });
+
     describe("Long UID", () => {
         const ss = new SecureStore({
             uid: "secure-store-redis-test1",
