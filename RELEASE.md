@@ -8,7 +8,7 @@
 ## Local Testing
   
   - bun install
-  - bun run lint
+  - bun lint
   - bun run build
   - Start Redis
   - bun test
