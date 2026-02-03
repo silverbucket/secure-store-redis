@@ -1,17 +1,18 @@
 {
-    "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+    "$schema": "https://biomejs.dev/schemas/2.3.14/schema.json",
     "vcs": { "enabled": false, "clientKind": "git", "useIgnoreFile": false },
     "files": {
         "ignoreUnknown": false,
-        "ignore": [
-            "**/node_modules",
-            "**/dist",
-            "**/coverage",
-            "**/*.test.ts",
-            "**/*.test.js",
-            "**/.claude",
-            "bun.lockb",
-            "pnpm-lock.yaml"
+        "includes": [
+            "**",
+            "!**/node_modules",
+            "!**/dist",
+            "!**/coverage",
+            "!**/*.test.ts",
+            "!**/*.test.js",
+            "!**/.claude",
+            "!**/bun.lockb",
+            "!**/pnpm-lock.yaml"
         ]
     },
     "formatter": {
@@ -24,9 +25,9 @@
         "lineWidth": 80,
         "attributePosition": "auto",
         "bracketSpacing": true,
-        "ignore": []
+        "includes": ["**"]
     },
-    "organizeImports": { "enabled": true },
+    "assist": { "actions": { "source": { "organizeImports": "on" } } },
     "linter": {
         "enabled": true,
         "rules": {
