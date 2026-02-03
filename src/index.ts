@@ -285,6 +285,9 @@ export default class SecureStore {
             } else {
                 log("Redis client quit called");
                 await client.quit();
+                if (client === this.client) {
+                    this.client = undefined;
+                }
             }
             this.connected = false;
         }
