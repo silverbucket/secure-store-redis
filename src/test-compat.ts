@@ -120,4 +120,4 @@ const { describe, test, beforeAll, afterAll, expect } =
         };
     })();
 
-export { describe, test, beforeAll, afterAll, expect };
+export { afterAll, beforeAll, describe, expect, test };
