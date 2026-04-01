@@ -1,36 +1,34 @@
 # Release Checklist
-## Pre-Release Verification
-  
-  - Ensure you're on the master branch
-  - Pull latest changes: git pull origin master
+
+## Automated Release
+
+Run the release script from the master branch:
+
+```sh
+./scripts/release.sh <patch|minor|major>
+```
+
+This will:
+  - Verify you're on master with a clean tree
+  - Pull latest changes
+  - Run lint, build, and tests (Bun + Node)
   - Bump version in package.json
+  - Commit and tag
+  - Push to origin
 
-## Local Testing
-  
-  - bun install
-  - bun lint
-  - bun run build
-  - Start Redis
-  - bun test
-  - bun run test:node
-  - Verify built output exists in dist/
+## After the Script
 
-## Documentation Review
+  - Create a GitHub Release to trigger npm publish:
+    `gh release create vX.X.X --generate-notes`
+  - The Publish workflow (`.github/workflows/publish.yml`) runs automatically
+    when a GitHub Release is published. It re-runs lint, build, and tests,
+    then publishes to npm using the `NPM_TOKEN` repo secret.
+  - Confirm published version: `npm view secure-store-redis version`
+  - Run verification: `./scripts/verify-published-package.sh`
 
-  - README.md reflects all API changes
-  - Breaking changes are clearly documented
+## Prerequisites
 
-## Git & GitHub
+  - The `NPM_TOKEN` secret must be set in the repo's GitHub Settings → Secrets.
+    Use a granular npm access token scoped to the `secure-store-redis` package
+    with publish permission.
 
-  - All changes committed
-  - Create and push tag:
-  git tag vX.X.X
-  git push --tags
-  - Publish: npm publish
-  - Update Github Release Page
-
-## Post-Release Verification
-
-  - Verify GitHub Actions Publish release to npmjs workflow succeeds
-  - Confirm package published: npm view secure-store-redis version shows new version
-  - Run verification package: ./scripts/verify-published-package.sh
