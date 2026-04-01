@@ -32,7 +32,3 @@ This will:
     Use a granular npm access token scoped to the `secure-store-redis` package
     with publish permission.
 
-## Documentation Review
-
-  - README.md reflects all API changes
-  - Breaking changes are clearly documented
