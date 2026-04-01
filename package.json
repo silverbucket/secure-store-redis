@@ -46,6 +46,7 @@
         "build:js": "bun build ./src/index.ts --outdir ./dist --target node --format esm",
         "build:types": "tsc",
         "build": "bun run build:js && bun run build:types",
+        "release": "./scripts/release.sh",
         "prepublishOnly": "bun run build"
     },
     "devDependencies": {
@@ -62,7 +63,7 @@
     },
     "readmeFilename": "README.md",
     "bugs": {
-        "url": "https://github.com/silverbucekt/secure-store-redis/issues"
+        "url": "https://github.com/silverbucket/secure-store-redis/issues"
     },
     "homepage": "https://github.com/silverbucket/secure-store-redis",
     "dependencies": {

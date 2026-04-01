@@ -1,5 +1,7 @@
 name: Compliance
 on:
+    push:
+        branches: [master]
     pull_request:
 
 jobs:
