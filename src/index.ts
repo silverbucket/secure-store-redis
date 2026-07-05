@@ -213,6 +213,19 @@ export interface SecureStoreConfig {
      * @default false
      */
     allowWeakSecrets?: boolean;
+    /**
+     * Optional time-to-live in milliseconds for the backing Redis hash.
+     * When set, every save() applies PEXPIRE and every get() refreshes it
+     * (sliding expiry). Applies per Redis key, so namespaced (postfix) keys
+     * each carry their own TTL, refreshed by whichever operation touches them.
+     *
+     * The TTL is refreshed only by operations, so an idle store expires even
+     * if the consumer process is alive. Size it as a generous backstop, not
+     * a session timeout.
+     *
+     * When unset (default), keys never expire.
+     */
+    ttl?: number;
 }
 
 /**
@@ -224,6 +237,7 @@ export interface TypedNamespace<
     get<K extends keyof TSchema>(key: K): Promise<TSchema[K] | null>;
     save<K extends keyof TSchema>(key: K, data: TSchema[K]): Promise<void>;
     delete<K extends keyof TSchema>(key: K): Promise<number>;
+    deleteAll(): Promise<number>;
 }
 
 /**
@@ -265,6 +279,14 @@ export default class SecureStore {
                     `Invalid secret: ${validation.reason}`,
                 );
             }
+        }
+        if (
+            cfg.ttl !== undefined &&
+            (!Number.isInteger(cfg.ttl) || cfg.ttl <= 0)
+        ) {
+            throw new ValidationError(
+                "ttl must be a positive integer (milliseconds)",
+            );
         }
         cfg.allowWeakSecrets = cfg.allowWeakSecrets ?? false;
         this.config = cfg as Required<SecureStoreConfig>;
@@ -435,7 +457,19 @@ export default class SecureStore {
         }
         const encryptedData = this.encrypt(serializedData);
         const hash = SecureStore.shasum(key);
-        await this.client?.hset(this.config.uid + suffix, hash, encryptedData);
+        const redisKey = this.config.uid + suffix;
+        if (this.config.ttl) {
+            // Both commands target the same key, so the transaction is
+            // Cluster-safe.
+            const results = await this.client
+                ?.multi()
+                .hset(redisKey, hash, encryptedData)
+                .pexpire(redisKey, this.config.ttl)
+                .exec();
+            SecureStore.assertExecSucceeded(results);
+        } else {
+            await this.client?.hset(redisKey, hash, encryptedData);
+        }
     }
 
     /**
@@ -453,7 +487,21 @@ export default class SecureStore {
             );
         }
         const hash = SecureStore.shasum(key);
-        const res = await this.client?.hget(this.config.uid + suffix, hash);
+        const redisKey = this.config.uid + suffix;
+        let res: unknown;
+        if (this.config.ttl) {
+            // Refresh the sliding-expiry window. PEXPIRE on a missing key is
+            // a harmless no-op, so no existence check is needed.
+            const results = await this.client
+                ?.multi()
+                .hget(redisKey, hash)
+                .pexpire(redisKey, this.config.ttl)
+                .exec();
+            SecureStore.assertExecSucceeded(results);
+            res = results?.[0][1];
+        } else {
+            res = await this.client?.hget(redisKey, hash);
+        }
 
         if (typeof res !== "string") {
             return null;
@@ -491,6 +539,23 @@ export default class SecureStore {
         const hash = SecureStore.shasum(key);
         // biome-ignore lint/style/noNonNullAssertion: client is guaranteed to exist after isConnected check
         return this.client!.hdel(this.config.uid + suffix, hash);
+    }
+
+    /**
+     * Delete the entire backing Redis hash for this store (all keys saved
+     * without a postfix), or for one namespace when a postfix is given.
+     * Safe to call when nothing was stored. Returns the number of Redis
+     * keys removed (0 or 1).
+     */
+    async deleteAll(postfix = ""): Promise<number> {
+        const suffix = postfix ? `:${postfix}` : "";
+        if (!this.isConnected) {
+            throw new ConnectionError(
+                "Not connected to Redis. Call await store.connect() first.",
+            );
+        }
+        // biome-ignore lint/style/noNonNullAssertion: client is guaranteed to exist after isConnected check
+        return this.client!.del(this.config.uid + suffix);
     }
 
     /**
@@ -577,7 +642,26 @@ export default class SecureStore {
             delete: async <K extends keyof TSchema>(key: K) => {
                 return this.delete(String(key), name);
             },
+            deleteAll: async () => {
+                return this.deleteAll(name);
+            },
         } as TypedNamespace<TSchema>;
+    }
+
+    /**
+     * Throw if a multi().exec() call was aborted or any queued command failed
+     */
+    private static assertExecSucceeded(
+        results: [error: Error | null, result: unknown][] | null | undefined,
+    ): void {
+        if (!results) {
+            throw new ConnectionError("Redis transaction aborted");
+        }
+        for (const [err] of results) {
+            if (err) {
+                throw new ConnectionError("Redis transaction failed", err);
+            }
+        }
     }
 
     /**

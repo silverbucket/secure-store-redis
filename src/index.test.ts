@@ -685,4 +685,164 @@ describe("SecureStore", () => {
             }
         });
     });
+
+    describe("TTL", () => {
+        const TTL_MS = 60000;
+        let store: SecureStore;
+        let redis: Redis;
+
+        beforeAll(async () => {
+            redis = new Redis({ host: "127.0.0.1", port: 6379 });
+            store = new SecureStore({
+                uid: "ttl-test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: {
+                    url: "redis://127.0.0.1:6379",
+                },
+                ttl: TTL_MS,
+            });
+            await store.connect();
+        });
+
+        afterAll(async () => {
+            await redis.del("ttl-test", "ttl-test:ns", "no-ttl-test");
+            await store.disconnect();
+            await redis.quit();
+        });
+
+        test("save() applies TTL to the backing key", async () => {
+            await store.save("foo", "bar");
+            const pttl = await redis.pttl("ttl-test");
+            expect(pttl > 0).toEqual(true);
+            expect(pttl <= TTL_MS).toEqual(true);
+        });
+
+        test("save() without ttl leaves key without expiry", async () => {
+            const plain = new SecureStore({
+                uid: "no-ttl-test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: {
+                    url: "redis://127.0.0.1:6379",
+                },
+            });
+            await plain.connect();
+            await plain.save("foo", "bar");
+            expect(await redis.pttl("no-ttl-test")).toEqual(-1);
+            await plain.disconnect();
+        });
+
+        test("get() refreshes the TTL window", async () => {
+            await store.save("foo", "bar");
+            await new Promise((resolve) => setTimeout(resolve, 150));
+            const before = await redis.pttl("ttl-test");
+            expect(before < TTL_MS).toEqual(true);
+            expect(await store.get("foo")).toEqual("bar");
+            const after = await redis.pttl("ttl-test");
+            expect(after > before).toEqual(true);
+        });
+
+        test("get() with ttl returns values and null as usual", async () => {
+            await store.save("foo", { a: 1 });
+            expect(await store.get("foo")).toEqual({ a: 1 });
+            expect(await store.get("nonexistent")).toEqual(null);
+        });
+
+        test("TTL applies independently to a namespaced key", async () => {
+            await store.save("foo", "bar", "ns");
+            const pttl = await redis.pttl("ttl-test:ns");
+            expect(pttl > 0).toEqual(true);
+            expect(pttl <= TTL_MS).toEqual(true);
+        });
+
+        test("constructor rejects invalid ttl values", () => {
+            for (const ttl of [0, -1000, 1.5]) {
+                expect(() => {
+                    new SecureStore({
+                        uid: "bad-ttl-test",
+                        secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                        redis: {
+                            url: "redis://127.0.0.1:6379",
+                        },
+                        ttl,
+                    });
+                }).toThrow("ttl must be a positive integer");
+            }
+        });
+    });
+
+    describe("deleteAll", () => {
+        let store: SecureStore;
+        let redis: Redis;
+
+        beforeAll(async () => {
+            redis = new Redis({ host: "127.0.0.1", port: 6379 });
+            store = new SecureStore({
+                uid: "deleteall-test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: {
+                    url: "redis://127.0.0.1:6379",
+                },
+            });
+            await store.connect();
+        });
+
+        afterAll(async () => {
+            await redis.del(
+                "deleteall-test",
+                "deleteall-test:ns",
+                "deleteall-test:ns2",
+                "deleteall-test:nsdel",
+            );
+            await store.disconnect();
+            await redis.quit();
+        });
+
+        test("removes the entire store and returns 1", async () => {
+            await store.save("a", "1");
+            await store.save("b", "2");
+            expect(await store.deleteAll()).toEqual(1);
+            expect(await store.get("a")).toEqual(null);
+            expect(await store.get("b")).toEqual(null);
+            expect(await redis.exists("deleteall-test")).toEqual(0);
+        });
+
+        test("returns 0 when nothing was stored", async () => {
+            expect(await store.deleteAll()).toEqual(0);
+        });
+
+        test("with postfix removes only the namespaced key", async () => {
+            await store.save("k", "base");
+            await store.save("k", "namespaced", "ns");
+            expect(await store.deleteAll("ns")).toEqual(1);
+            expect(await store.get("k", "ns")).toEqual(null);
+            expect(await store.get("k")).toEqual("base");
+        });
+
+        test("without postfix leaves namespaced keys intact", async () => {
+            await store.save("k", "namespaced", "ns2");
+            expect(await store.deleteAll()).toEqual(1);
+            expect(await store.get("k")).toEqual(null);
+            expect(await store.get("k", "ns2")).toEqual("namespaced");
+        });
+
+        test("namespace().deleteAll() removes the namespace", async () => {
+            const ns = store.namespace("nsdel");
+            await ns.save("k", "v");
+            expect(await ns.deleteAll()).toEqual(1);
+            expect(await ns.get("k")).toEqual(null);
+        });
+
+        test("throws when not connected", async () => {
+            const disconnected = new SecureStore({
+                uid: "deleteall-disconnected-test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: {
+                    url: "redis://127.0.0.1:6379",
+                },
+            });
+            await expect(disconnected.deleteAll()).rejects.toThrow(
+                "Not connected to Redis",
+            );
+        });
+    });
 });
