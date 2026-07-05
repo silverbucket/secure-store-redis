@@ -1,5 +1,4 @@
 import {
-    type BinaryLike,
     createCipheriv,
     createDecipheriv,
     createHash,
@@ -497,7 +496,7 @@ export default class SecureStore {
     /**
      * Encrypts arbitrary data, returning an encrypted string
      */
-    private encrypt(data: unknown): string {
+    private encrypt(data: string): string {
         const iv = randomBytes(IV_LENGTH);
         const cipher = createCipheriv(
             ALGORITHM,
@@ -505,9 +504,10 @@ export default class SecureStore {
             iv,
             { authTagLength: AUTH_TAG_LENGTH },
         );
-        let encrypted = cipher.update(data as BinaryLike);
-
-        encrypted = Buffer.concat([encrypted, cipher.final()]);
+        const encrypted = Buffer.concat([
+            cipher.update(data, "utf8"),
+            cipher.final(),
+        ]);
         const authTag = cipher.getAuthTag();
 
         // Format: iv:auth_tag:encrypted_data
