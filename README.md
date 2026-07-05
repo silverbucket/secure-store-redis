@@ -43,6 +43,22 @@ new SecureStore(config: SecureStoreConfig)
 | `secret`           | string                          | Yes      | 32-character encryption secret. Use `SecretValidator.generate()`. |
 | `redis`            | RedisOptions \| { url: string } \| { client: Redis \| Cluster } | Yes      | Redis connection config or existing client                        |
 | `allowWeakSecrets` | boolean                         | No       | Bypass secret strength validation (default: false)                |
+| `ttl`              | number                          | No       | Time-to-live in milliseconds for the backing Redis key, with sliding expiry (default: no expiry) |
+
+### Key Expiry (TTL)
+
+When `ttl` is set, every `save()` applies a `PEXPIRE` to the store's backing Redis key and every `get()` refreshes it, giving you a sliding expiry window. The TTL applies per Redis key, so namespaced (postfix) keys each carry their own TTL, refreshed by whichever operation touches them.
+
+```typescript
+const store = new SecureStore({
+    uid: "myApp:sessions",
+    secret: SecretValidator.generate(),
+    redis: { url: "redis://localhost:6379" },
+    ttl: 24 * 60 * 60 * 1000, // 24 hours
+});
+```
+
+Note that the TTL is refreshed only by *operations* — an idle store expires even if your process is still running. Size `ttl` as a generous backstop against orphaned data, not as a session timeout, and delete explicitly (see `deleteAll()`) when you know a store is no longer needed. When `ttl` is unset, keys never expire (the default, and the behavior of previous versions).
 
 ### Using an Existing Redis Client
 
@@ -138,6 +154,12 @@ Retrieve and decrypt data. Returns `null` if not found or decryption fails.
 
 Delete data. Returns count of deleted keys.
 
+#### `deleteAll(postfix?: string): Promise<number>`
+
+Delete the entire backing Redis key for this store (all keys saved without a postfix), or for one namespace when a postfix is given. Safe to call when nothing was stored. Returns the number of Redis keys removed (0 or 1).
+
+Each call removes exactly one Redis key — if you use multiple namespaces, call `deleteAll()` once per namespace (or use `namespace(name).deleteAll()`).
+
 #### `disconnect(client?: Redis): Promise<void>`
 
 Close Redis connection. Optionally pass a specific Redis client to disconnect.
@@ -188,6 +210,7 @@ Each namespace provides the same core operations as the store:
 - `get<K>(key: K): Promise<T[K] | null>`
 - `save<K>(key: K, data: T[K]): Promise<void>`
 - `delete<K>(key: K): Promise<number>`
+- `deleteAll(): Promise<number>`
 
 ### Namespace Isolation
 
