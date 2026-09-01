@@ -68,6 +68,6 @@
     "homepage": "https://github.com/silverbucket/secure-store-redis",
     "dependencies": {
         "debug": "4.4.3",
-        "ioredis": "^5.11.1"
+        "ioredis": "^6.0.0"
     }
 }
