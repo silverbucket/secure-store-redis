@@ -16,6 +16,9 @@ export type RedisClient = Redis | Cluster;
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 16;
 const AUTH_TAG_LENGTH = 16;
+// Records with this prefix have their ciphertext bound (via GCM AAD) to the
+// Redis key and field they were saved under. Unprefixed records predate this.
+const BOUND_FORMAT = "v2";
 
 const log = debug("secure-store-redis");
 
@@ -464,9 +467,12 @@ export default class SecureStore {
                 "Not connected to Redis. Call await store.connect() first.",
             );
         }
-        const encryptedData = this.encrypt(serializedData);
         const hash = SecureStore.shasum(key);
         const redisKey = this.config.uid + suffix;
+        const encryptedData = this.encrypt(
+            serializedData,
+            this.aad(redisKey, hash),
+        );
         if (this.config.ttl) {
             // Both commands target the same key, so the transaction is
             // Cluster-safe.
@@ -517,7 +523,7 @@ export default class SecureStore {
         }
 
         try {
-            const decryptedData = this.decrypt(res);
+            const decryptedData = this.decrypt(res, this.aad(redisKey, hash));
 
             try {
                 return JSON.parse(decryptedData) as T;
@@ -570,7 +576,7 @@ export default class SecureStore {
     /**
      * Encrypts arbitrary data, returning an encrypted string
      */
-    private encrypt(data: string): string {
+    private encrypt(data: string, aad: string): string {
         const iv = randomBytes(IV_LENGTH);
         const cipher = createCipheriv(
             ALGORITHM,
@@ -578,14 +584,16 @@ export default class SecureStore {
             iv,
             { authTagLength: AUTH_TAG_LENGTH },
         );
+        cipher.setAAD(Buffer.from(aad));
         const encrypted = Buffer.concat([
             cipher.update(data, "utf8"),
             cipher.final(),
         ]);
         const authTag = cipher.getAuthTag();
 
-        // Format: iv:auth_tag:encrypted_data
+        // Format: v2:iv:auth_tag:encrypted_data
         return [
+            BOUND_FORMAT,
             iv.toString("hex"),
             authTag.toString("hex"),
             encrypted.toString("hex"),
@@ -595,13 +603,18 @@ export default class SecureStore {
     /**
      * Decrypts given encrypted string, returning its arbitrary data
      */
-    private decrypt(encrypted: string): string {
+    private decrypt(encrypted: string, aad: string): string {
         const parts = encrypted.split(":");
-        if (parts.length !== 3) {
+        // shortcut: unprefixed legacy records are not location-bound until
+        // re-saved; drop this fallback in the next major version.
+        const bound = parts[0] === BOUND_FORMAT;
+        if (parts.length !== (bound ? 4 : 3)) {
             throw new EncryptionError("Invalid encrypted data format");
         }
 
-        const [ivPart, authTagPart, encryptedTextPart] = parts;
+        const [ivPart, authTagPart, encryptedTextPart] = bound
+            ? parts.slice(1)
+            : parts;
         try {
             const iv = Buffer.from(ivPart, "hex");
             const authTag = Buffer.from(authTagPart, "hex");
@@ -616,6 +629,9 @@ export default class SecureStore {
 
             // Set authentication tag for GCM
             decipher.setAuthTag(authTag);
+            if (bound) {
+                decipher.setAAD(Buffer.from(aad));
+            }
 
             let decrypted = decipher.update(encryptedText);
             decrypted = Buffer.concat([decrypted, decipher.final()]);
@@ -671,6 +687,17 @@ export default class SecureStore {
                 throw new ConnectionError("Redis transaction failed", err);
             }
         }
+    }
+
+    /**
+     * Associated data binding a ciphertext to the physical Redis key and
+     * field it lives under, so a value copied elsewhere fails
+     * authentication. Includes the client's keyPrefix, which ioredis
+     * prepends to every key it sends.
+     */
+    private aad(redisKey: string, field: string): string {
+        const prefix = this.client?.options.keyPrefix ?? "";
+        return `${prefix}${redisKey}\0${field}`;
     }
 
     /**
