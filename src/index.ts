@@ -380,36 +380,17 @@ export default class SecureStore {
         // Create internal client
         if (!this.client) {
             return new Promise((resolve, reject) => {
-                let redisConfig: RedisOptions = {};
-
-                // Compatibility: convert node-redis style { url: "..." } to ioredis format
-                if (
-                    this.config.redis &&
-                    "url" in this.config.redis &&
-                    typeof this.config.redis.url === "string"
-                ) {
-                    const url = new URL(this.config.redis.url);
-                    redisConfig = {
-                        host: url.hostname,
-                        port: url.port ? Number.parseInt(url.port, 10) : 6379,
-                        username: url.username || undefined,
-                        password: url.password || undefined,
-                        db:
-                            url.pathname.length > 1
-                                ? Number.parseInt(url.pathname.slice(1), 10)
-                                : 0,
-                    };
-                } else if (
-                    this.config.redis &&
-                    !("client" in this.config.redis)
-                ) {
-                    redisConfig = this.config.redis as RedisOptions;
-                }
-
-                const client = new Redis({
-                    ...redisConfig,
-                    lazyConnect: true,
-                });
+                // ioredis parses the URL itself: rediss:// enables TLS,
+                // credentials are percent-decoded, query params are honoured.
+                const client =
+                    "url" in this.config.redis
+                        ? new Redis(this.config.redis.url, {
+                              lazyConnect: true,
+                          })
+                        : new Redis({
+                              ...(this.config.redis as RedisOptions),
+                              lazyConnect: true,
+                          });
 
                 client.on("error", (err: Error) => {
                     log("Redis connection error", err);

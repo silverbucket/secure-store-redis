@@ -1,5 +1,6 @@
 import { expect, test, describe, afterAll, beforeAll } from "./test-compat.ts";
 import { createCipheriv, createHash, randomBytes } from "node:crypto";
+import { createServer } from "node:net";
 import { Redis } from "ioredis";
 
 import SecureStore, { SecretValidator } from "./index.ts";
@@ -144,6 +145,32 @@ describe("SecureStore", () => {
                     });
                 }).toThrow("32 bytes");
             }
+        });
+    });
+
+    describe("Redis URL", () => {
+        test("rediss:// connects with TLS", async () => {
+            // Capture the first byte the client sends: a TLS ClientHello
+            // starts with the handshake record type 0x16.
+            let firstByte = -1;
+            const server = createServer((socket) => {
+                socket.once("data", (chunk) => {
+                    firstByte = chunk[0];
+                    socket.destroy();
+                });
+            });
+            await new Promise<void>((resolve) =>
+                server.listen(0, "127.0.0.1", resolve),
+            );
+            const { port } = server.address() as { port: number };
+            const ss = new SecureStore({
+                uid: "test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: { url: `rediss://127.0.0.1:${port}` },
+            });
+            await expect(ss.connect()).rejects.toThrow("Failed to connect");
+            await new Promise<void>((resolve) => server.close(() => resolve()));
+            expect(firstByte).toEqual(0x16);
         });
     });
 
