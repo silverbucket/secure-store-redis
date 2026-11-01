@@ -125,11 +125,24 @@ describe("SecureStore", () => {
         test("weak secret allowed with allowWeakSecrets", () => {
             const ss = new SecureStore({
                 uid: "test",
-                secret: "weakbutallowed",
+                secret: "weakbutallowedweakbutallowed1234",
                 redis: { url: "redis://127.0.0.1:6379" },
                 allowWeakSecrets: true,
             });
             expect(ss).toBeDefined();
+        });
+
+        test("secret must be 32 bytes even with allowWeakSecrets", () => {
+            for (const secret of ["weakbutallowed", "é".repeat(32)]) {
+                expect(() => {
+                    new SecureStore({
+                        uid: "test",
+                        secret,
+                        redis: { url: "redis://127.0.0.1:6379" },
+                        allowWeakSecrets: true,
+                    });
+                }).toThrow("32 bytes");
+            }
         });
     });
 
@@ -540,7 +553,13 @@ describe("SecureStore", () => {
         test("validate rejects short secrets", () => {
             const result = SecretValidator.validate("short");
             expect(result.valid).toEqual(false);
-            expect(result.reason).toContain("32 characters");
+            expect(result.reason).toContain("32 bytes");
+        });
+
+        test("validate rejects 32-character multi-byte secrets", () => {
+            const result = SecretValidator.validate("é".repeat(32));
+            expect(result.valid).toEqual(false);
+            expect(result.reason).toContain("32 bytes");
         });
 
         test("validate rejects weak patterns", () => {

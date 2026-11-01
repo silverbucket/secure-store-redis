@@ -40,7 +40,7 @@ new SecureStore(config: SecureStoreConfig)
 | Option             | Type                            | Required | Description                                                       |
 | ------------------ | ------------------------------- | -------- | ----------------------------------------------------------------- |
 | `uid`              | string                          | Yes      | Unique prefix for Redis keys (e.g., `"myApp"`, `"myApp:sessions"`) |
-| `secret`           | string                          | Yes      | 32-character encryption secret. Use `SecretValidator.generate()`. |
+| `secret`           | string                          | Yes      | 32-byte (ASCII) encryption secret. Use `SecretValidator.generate()`. |
 | `redis`            | RedisOptions \| { url: string } \| { client: Redis \| Cluster } | Yes      | Redis connection config or existing client                        |
 | `allowWeakSecrets` | boolean                         | No       | Bypass secret strength validation (default: false)                |
 | `ttl`              | number                          | No       | Time-to-live in milliseconds for the backing Redis key, with sliding expiry (default: no expiry) |
@@ -245,7 +245,7 @@ Validate secret strength against security requirements.
 ### Validation Rules
 
 Secrets must:
-- Be exactly 32 characters
+- Be exactly 32 bytes (32 ASCII characters)
 - Have sufficient entropy (Shannon entropy ≥ 4.0)
 - Not contain weak patterns (repeated chars, sequential numbers, etc.)
 - Contain at least 3 of: uppercase, lowercase, numbers, special characters

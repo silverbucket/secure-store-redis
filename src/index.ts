@@ -114,10 +114,10 @@ export class SecretValidator {
             return { valid: false, reason: "Secret must be a string" };
         }
 
-        if (secret.length !== 32) {
+        if (Buffer.byteLength(secret) !== 32) {
             return {
                 valid: false,
-                reason: "Secret must be exactly 32 characters",
+                reason: "Secret must be exactly 32 bytes (32 ASCII characters)",
             };
         }
 
@@ -271,7 +271,16 @@ export default class SecureStore {
             this.client = cfg.redis.client;
             this.externalClientProvided = true;
         }
-        // Validate secret unless allowWeakSecrets is true
+        // AES-256 needs exactly 32 key bytes; enforce this even for weak secrets
+        if (
+            typeof cfg.secret !== "string" ||
+            Buffer.byteLength(cfg.secret) !== 32
+        ) {
+            throw new ValidationError(
+                "Invalid secret: Secret must be exactly 32 bytes (32 ASCII characters)",
+            );
+        }
+        // Validate secret strength unless allowWeakSecrets is true
         if (!cfg.allowWeakSecrets) {
             const validation = SecretValidator.validate(cfg.secret);
             if (!validation.valid) {
