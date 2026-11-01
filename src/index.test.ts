@@ -149,13 +149,13 @@ describe("SecureStore", () => {
     });
 
     describe("Redis URL", () => {
-        test("rediss:// connects with TLS", async () => {
-            // Capture the first byte the client sends: a TLS ClientHello
-            // starts with the handshake record type 0x16.
-            let firstByte = -1;
+        // Loopback server that records the first bytes a client sends,
+        // then drops the connection so connect() rejects promptly.
+        async function captureFirstChunk() {
+            let chunk = Buffer.alloc(0);
             const server = createServer((socket) => {
-                socket.once("data", (chunk) => {
-                    firstByte = chunk[0];
+                socket.once("data", (data) => {
+                    chunk = data;
                     socket.destroy();
                 });
             });
@@ -163,14 +163,68 @@ describe("SecureStore", () => {
                 server.listen(0, "127.0.0.1", resolve),
             );
             const { port } = server.address() as { port: number };
+            return {
+                port,
+                chunk: () => chunk,
+                close: () =>
+                    new Promise<void>((resolve) =>
+                        server.close(() => resolve()),
+                    ),
+            };
+        }
+
+        test("rediss:// connects with TLS", async () => {
+            const server = await captureFirstChunk();
             const ss = new SecureStore({
                 uid: "test",
                 secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
-                redis: { url: `rediss://127.0.0.1:${port}` },
+                redis: { url: `rediss://127.0.0.1:${server.port}` },
             });
-            await expect(ss.connect()).rejects.toThrow("Failed to connect");
-            await new Promise<void>((resolve) => server.close(() => resolve()));
-            expect(firstByte).toEqual(0x16);
+            try {
+                await expect(ss.connect()).rejects.toThrow(
+                    "Failed to connect",
+                );
+            } finally {
+                await server.close();
+            }
+            // A TLS ClientHello starts with handshake record type 0x16
+            expect(server.chunk()[0]).toEqual(0x16);
+        });
+
+        test("rediss:// with an empty tls param is rejected, not downgraded", async () => {
+            const server = await captureFirstChunk();
+            const ss = new SecureStore({
+                uid: "test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: { url: `rediss://127.0.0.1:${server.port}?tls=` },
+            });
+            try {
+                await expect(ss.connect()).rejects.toThrow("non-TLS");
+            } finally {
+                await server.close();
+            }
+            expect(server.chunk().length).toEqual(0);
+        });
+
+        test("percent-encoded credentials are decoded before AUTH", async () => {
+            const server = await captureFirstChunk();
+            const ss = new SecureStore({
+                uid: "test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: {
+                    url: `redis://user:p%40ss%2Fword@127.0.0.1:${server.port}`,
+                },
+            });
+            try {
+                await expect(ss.connect()).rejects.toThrow(
+                    "Failed to connect",
+                );
+            } finally {
+                await server.close();
+            }
+            const sent = server.chunk().toString();
+            expect(sent).toContain("auth");
+            expect(sent).toContain("p@ss/word");
         });
     });
 

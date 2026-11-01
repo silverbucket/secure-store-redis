@@ -391,6 +391,18 @@ export default class SecureStore {
                               ...(this.config.redis as RedisOptions),
                               lazyConnect: true,
                           });
+                // ioredis lets a "?tls=" query param override the scheme
+                // and silently fall back to plaintext; refuse that.
+                if (
+                    "url" in this.config.redis &&
+                    this.config.redis.url.startsWith("rediss://") &&
+                    !client.options.tls
+                ) {
+                    client.disconnect();
+                    throw new ConnectionError(
+                        "rediss:// URL resolved to a non-TLS client; remove the tls query parameter",
+                    );
+                }
 
                 client.on("error", (err: Error) => {
                     log("Redis connection error", err);
