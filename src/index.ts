@@ -391,11 +391,12 @@ export default class SecureStore {
                               ...(this.config.redis as RedisOptions),
                               lazyConnect: true,
                           });
-                // ioredis lets a "?tls=" query param override the scheme
-                // and silently fall back to plaintext; refuse that.
+                // ioredis only enables TLS for a lowercase "rediss://" and
+                // lets a "?tls=" query param override it; refuse any
+                // rediss URL that ended up without TLS.
                 if (
                     "url" in this.config.redis &&
-                    this.config.redis.url.startsWith("rediss://") &&
+                    /^rediss:\/\//i.test(this.config.redis.url) &&
                     !client.options.tls
                 ) {
                     client.disconnect();

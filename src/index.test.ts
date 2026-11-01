@@ -191,19 +191,25 @@ describe("SecureStore", () => {
             expect(server.chunk()[0]).toEqual(0x16);
         });
 
-        test("rediss:// with an empty tls param is rejected, not downgraded", async () => {
-            const server = await captureFirstChunk();
-            const ss = new SecureStore({
-                uid: "test",
-                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
-                redis: { url: `rediss://127.0.0.1:${server.port}?tls=` },
-            });
-            try {
-                await expect(ss.connect()).rejects.toThrow("non-TLS");
-            } finally {
-                await server.close();
+        test("rediss:// URLs that lose TLS are rejected, not downgraded", async () => {
+            // ioredis drops TLS for an empty ?tls= param and for a
+            // non-lowercase scheme; neither may reach the wire.
+            for (const url of ["rediss://HOST?tls=", "REDISS://HOST", "Rediss://HOST"]) {
+                const server = await captureFirstChunk();
+                const ss = new SecureStore({
+                    uid: "test",
+                    secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                    redis: {
+                        url: url.replace("HOST", `127.0.0.1:${server.port}`),
+                    },
+                });
+                try {
+                    await expect(ss.connect()).rejects.toThrow("non-TLS");
+                } finally {
+                    await server.close();
+                }
+                expect(server.chunk().length).toEqual(0);
             }
-            expect(server.chunk().length).toEqual(0);
         });
 
         test("percent-encoded credentials are decoded before AUTH", async () => {
