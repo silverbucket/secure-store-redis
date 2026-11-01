@@ -223,7 +223,8 @@ describe("SecureStore", () => {
                 await server.close();
             }
             const sent = server.chunk().toString();
-            expect(sent).toContain("auth");
+            // RESP2 sends "auth", RESP3 (ioredis 6) sends "HELLO 3 AUTH"
+            expect(sent.toLowerCase()).toContain("auth");
             expect(sent).toContain("p@ss/word");
         });
     });
