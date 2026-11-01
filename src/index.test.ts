@@ -903,6 +903,28 @@ describe("SecureStore", () => {
             expect(await store.get("role")).toEqual(null);
         });
 
+        test("value copied across client keyPrefix boundaries is rejected", async () => {
+            const staging = new Redis({ host: "127.0.0.1", port: 6379, keyPrefix: "staging:" });
+            const prod = new Redis({ host: "127.0.0.1", port: 6379, keyPrefix: "prod:" });
+            const mk = (client: Redis) =>
+                new SecureStore({ uid: "bind-test", secret: SECRET, redis: { client } });
+            const stagingStore = mk(staging);
+            const prodStore = mk(prod);
+            await stagingStore.connect();
+            await prodStore.connect();
+            try {
+                await stagingStore.save("role", "staging-admin");
+                const ct = await redis.hget("staging:bind-test", sha("role"));
+                await redis.hset("prod:bind-test", sha("role"), ct as string);
+                expect(await prodStore.get("role")).toEqual(null);
+                expect(await stagingStore.get("role")).toEqual("staging-admin");
+            } finally {
+                await redis.del("staging:bind-test", "prod:bind-test");
+                await staging.quit();
+                await prod.quit();
+            }
+        });
+
         test("legacy unprefixed records still decrypt", async () => {
             // Pre-binding format: iv:tag:ciphertext with no AAD
             const iv = randomBytes(16);

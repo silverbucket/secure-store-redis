@@ -471,7 +471,7 @@ export default class SecureStore {
         const redisKey = this.config.uid + suffix;
         const encryptedData = this.encrypt(
             serializedData,
-            SecureStore.aad(redisKey, hash),
+            this.aad(redisKey, hash),
         );
         if (this.config.ttl) {
             // Both commands target the same key, so the transaction is
@@ -523,10 +523,7 @@ export default class SecureStore {
         }
 
         try {
-            const decryptedData = this.decrypt(
-                res,
-                SecureStore.aad(redisKey, hash),
-            );
+            const decryptedData = this.decrypt(res, this.aad(redisKey, hash));
 
             try {
                 return JSON.parse(decryptedData) as T;
@@ -693,11 +690,14 @@ export default class SecureStore {
     }
 
     /**
-     * Associated data binding a ciphertext to the Redis key and field it
-     * lives under, so a value copied elsewhere fails authentication.
+     * Associated data binding a ciphertext to the physical Redis key and
+     * field it lives under, so a value copied elsewhere fails
+     * authentication. Includes the client's keyPrefix, which ioredis
+     * prepends to every key it sends.
      */
-    private static aad(redisKey: string, field: string): string {
-        return `${redisKey}\0${field}`;
+    private aad(redisKey: string, field: string): string {
+        const prefix = this.client?.options.keyPrefix ?? "";
+        return `${prefix}${redisKey}\0${field}`;
     }
 
     /**

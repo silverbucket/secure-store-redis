@@ -288,7 +288,9 @@ try {
 
 ## Migration from v4.2 and earlier
 
-Values saved by v4.3+ carry a `v2:` prefix and are bound to their Redis key and field. Older unprefixed values still decrypt but are **not** bound until re-saved; to get the protection for existing data, read and re-save each value. The legacy fallback will be removed in the next major version.
+Values saved by v4.3+ carry a `v2:` prefix and are bound to their Redis key and field (including any ioredis `keyPrefix`). Older unprefixed values still decrypt but are **not** bound; read and re-save each value to bind it.
+
+Re-saving does not retire old ciphertext: while the legacy fallback exists, anyone who captured an unprefixed value can still write it under any key or field encrypted with the same secret and have it accepted. If that matters for your threat model, rotate the secret after migrating. The legacy fallback will be removed in the next major version.
 
 ## Migration from v3.x
 
