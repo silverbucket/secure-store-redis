@@ -7,8 +7,6 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v7
-              with:
-                  ref: master
             - name: Setup Bun
               uses: oven-sh/setup-bun@v2
             # setup .npmrc file to publish to npm
