@@ -405,6 +405,15 @@ export default class SecureStore {
                     );
                 }
 
+                // ioredis turns a non-numeric URL path into db NaN and
+                // then silently skips SELECT, landing on db 0.
+                if (Number.isNaN(client.options.db)) {
+                    client.disconnect();
+                    throw new ValidationError(
+                        "Redis URL path must be a database number",
+                    );
+                }
+
                 client.on("error", (err: Error) => {
                     log("Redis connection error", err);
                 });

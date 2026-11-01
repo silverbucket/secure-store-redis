@@ -212,6 +212,15 @@ describe("SecureStore", () => {
             }
         });
 
+        test("non-numeric database path is rejected", async () => {
+            const ss = new SecureStore({
+                uid: "test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: { url: "redis://127.0.0.1:6379/not-a-db" },
+            });
+            await expect(ss.connect()).rejects.toThrow("database number");
+        });
+
         test("percent-encoded credentials are decoded before AUTH", async () => {
             const server = await captureFirstChunk();
             const ss = new SecureStore({
