@@ -4,7 +4,7 @@
 [![license](https://img.shields.io/npm/l/secure-store-redis.svg)](https://github.com/silverbucket/secure-store-redis/blob/master/LICENSE)
 [![build](https://github.com/silverbucket/secure-store-redis/actions/workflows/compliance.yml/badge.svg)](https://github.com/silverbucket/secure-store-redis/actions)
 
-Encrypt and store data in Redis. Uses AES-256-GCM encryption with unique IVs per entry.
+Encrypt and store data in Redis. Uses AES-256-GCM encryption with unique IVs per entry. Each value is bound to the Redis key and field it was saved under, so a ciphertext copied to another key or namespace fails to decrypt.
 
 ## Installation
 
@@ -285,6 +285,10 @@ try {
 - Enable Redis authentication and TLS in production
 - Use unique `uid` values per application/environment to prevent data collisions
 - Rotate secrets periodically (requires re-encryption of existing data)
+
+## Migration from v4.2 and earlier
+
+Values saved by v4.3+ carry a `v2:` prefix and are bound to their Redis key and field. Older unprefixed values still decrypt but are **not** bound until re-saved; to get the protection for existing data, read and re-save each value. The legacy fallback will be removed in the next major version.
 
 ## Migration from v3.x
 

@@ -1,4 +1,5 @@
 import { expect, test, describe, afterAll, beforeAll } from "./test-compat.ts";
+import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import { Redis } from "ioredis";
 
 import SecureStore, { SecretValidator } from "./index.ts";
@@ -862,6 +863,56 @@ describe("SecureStore", () => {
             await expect(disconnected.deleteAll()).rejects.toThrow(
                 "Not connected to Redis",
             );
+        });
+    });
+
+    describe("Ciphertext binding", () => {
+        const SECRET = "823HD8DG26JA0LK1239Hgb651TWfs0j1";
+        const sha = (t: string) => createHash("sha256").update(t).digest("hex");
+        let store: SecureStore;
+        let redis: Redis;
+
+        beforeAll(async () => {
+            redis = new Redis({ host: "127.0.0.1", port: 6379 });
+            store = new SecureStore({
+                uid: "bind-test",
+                secret: SECRET,
+                redis: { url: "redis://127.0.0.1:6379" },
+            });
+            await store.connect();
+        });
+
+        afterAll(async () => {
+            await redis.del("bind-test", "bind-test:other");
+            await store.disconnect();
+            await redis.quit();
+        });
+
+        test("value copied to another field is rejected", async () => {
+            await store.save("role", "admin");
+            const ct = await redis.hget("bind-test", sha("role"));
+            await redis.hset("bind-test", sha("victim"), ct as string);
+            expect(await store.get("victim")).toEqual(null);
+            expect(await store.get("role")).toEqual("admin");
+        });
+
+        test("value copied to another namespace is rejected", async () => {
+            await store.save("role", "admin", "other");
+            const ct = await redis.hget("bind-test:other", sha("role"));
+            await redis.hset("bind-test", sha("role"), ct as string);
+            expect(await store.get("role")).toEqual(null);
+        });
+
+        test("legacy unprefixed records still decrypt", async () => {
+            // Pre-binding format: iv:tag:ciphertext with no AAD
+            const iv = randomBytes(16);
+            const cipher = createCipheriv("aes-256-gcm", Buffer.from(SECRET), iv);
+            const enc = Buffer.concat([cipher.update('"old"', "utf8"), cipher.final()]);
+            const legacy = [iv, cipher.getAuthTag(), enc]
+                .map((b) => b.toString("hex"))
+                .join(":");
+            await redis.hset("bind-test", sha("legacy"), legacy);
+            expect(await store.get("legacy")).toEqual("old");
         });
     });
 });
