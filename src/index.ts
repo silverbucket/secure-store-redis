@@ -391,6 +391,18 @@ export default class SecureStore {
                         "Redis URL must not contain whitespace or control characters",
                     );
                 }
+                // A URL lazyConnect overrides ours and starts connecting in
+                // the constructor, before the guards below can stop it.
+                if (
+                    url?.includes("?") &&
+                    new URLSearchParams(url.slice(url.indexOf("?") + 1)).has(
+                        "lazyConnect",
+                    )
+                ) {
+                    throw new ValidationError(
+                        "Redis URL must not set lazyConnect",
+                    );
+                }
                 // ioredis parses the URL itself: rediss:// enables TLS,
                 // credentials are percent-decoded, query params are honoured.
                 const client =
