@@ -380,6 +380,16 @@ export default class SecureStore {
         // Create internal client
         if (!this.client) {
             return new Promise((resolve, reject) => {
+                // WHATWG URL parsing strips tabs and newlines, so a scheme
+                // like "redi\tss://" could dodge the TLS guard below.
+                if (
+                    "url" in this.config.redis &&
+                    /[\s\p{Cc}]/u.test(this.config.redis.url)
+                ) {
+                    throw new ValidationError(
+                        "Redis URL must not contain whitespace or control characters",
+                    );
+                }
                 // ioredis parses the URL itself: rediss:// enables TLS,
                 // credentials are percent-decoded, query params are honoured.
                 const client =
@@ -396,7 +406,7 @@ export default class SecureStore {
                 // rediss URL that ended up without TLS.
                 if (
                     "url" in this.config.redis &&
-                    /^\s*rediss:\/\//i.test(this.config.redis.url) &&
+                    /^rediss:\/\//i.test(this.config.redis.url) &&
                     !client.options.tls
                 ) {
                     client.disconnect();

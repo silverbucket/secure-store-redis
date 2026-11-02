@@ -195,13 +195,12 @@ describe("SecureStore", () => {
         });
 
         test("rediss:// URLs that lose TLS are rejected, not downgraded", async () => {
-            // ioredis drops TLS for an empty ?tls= param, a non-lowercase
-            // scheme, or leading whitespace; none may reach the wire.
+            // ioredis drops TLS for an empty ?tls= param or a
+            // non-lowercase scheme; neither may reach the wire.
             for (const url of [
                 "rediss://HOST?tls=",
                 "REDISS://HOST",
                 "Rediss://HOST",
-                "\trediss://HOST",
             ]) {
                 const server = await captureFirstChunk();
                 const ss = new SecureStore({
@@ -220,6 +219,25 @@ describe("SecureStore", () => {
             }
         });
 
+        test("URLs with whitespace or control characters are rejected", async () => {
+            // WHATWG parsing strips these, so "redi\tss://" would read as
+            // rediss: downstream while dodging the TLS guard.
+            for (const url of [
+                "\trediss://127.0.0.1:6379",
+                "redi\tss://127.0.0.1:6379",
+                "rediss://127.0.0.1:6379\n",
+            ]) {
+                const ss = new SecureStore({
+                    uid: "test",
+                    secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                    redis: { url },
+                });
+                await expect(ss.connect()).rejects.toThrow(
+                    "whitespace or control",
+                );
+            }
+        });
+
         test("non-numeric database path is rejected", async () => {
             const ss = new SecureStore({
                 uid: "test",
@@ -230,18 +248,23 @@ describe("SecureStore", () => {
         });
 
         test("URL query options reach ioredis", async () => {
+            const uid = `url-db-test-${randomBytes(8).toString("hex")}`;
             const ss = new SecureStore({
-                uid: "url-db-test",
+                uid,
                 secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
-                redis: { url: "redis://127.0.0.1:6379?db=1" },
+                redis: { url: `redis://127.0.0.1:6379?db=1` },
             });
-            const db1 = new Redis({ host: "127.0.0.1", port: 6379, db: 1 });
+            const db0 = new Redis({ host: "127.0.0.1", port: 6379 });
+            const db1 = new Redis({ host: "127.0.0.1", port: 6379 });
             try {
+                await db1.select(1);
                 await ss.connect();
                 await ss.save("foo", "bar");
-                expect(await db1.exists("url-db-test")).toEqual(1);
+                expect(await db0.exists(uid)).toEqual(0);
+                expect(await db1.exists(uid)).toEqual(1);
             } finally {
-                await db1.del("url-db-test");
+                await db1.del(uid);
+                await db0.quit();
                 await db1.quit();
                 await ss.disconnect();
             }
