@@ -37,13 +37,13 @@ await store.disconnect();
 new SecureStore(config: SecureStoreConfig)
 ```
 
-| Option             | Type                            | Required | Description                                                       |
-| ------------------ | ------------------------------- | -------- | ----------------------------------------------------------------- |
-| `uid`              | string                          | Yes      | Unique prefix for Redis keys (e.g., `"myApp"`, `"myApp:sessions"`) |
-| `secret`           | string                          | Yes      | 32-byte (ASCII) encryption secret. Use `SecretValidator.generate()`. |
-| `redis`            | RedisOptions \| { url: string } \| { client: Redis \| Cluster } | Yes      | Redis connection config or existing client                        |
-| `allowWeakSecrets` | boolean                         | No       | Bypass secret strength validation (default: false)                |
-| `ttl`              | number                          | No       | Time-to-live in milliseconds for the backing Redis key, with sliding expiry (default: no expiry) |
+| Option             | Type                                                            | Required | Description                                                                                      |
+| ------------------ | --------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------ |
+| `uid`              | string                                                          | Yes      | Unique prefix for Redis keys (e.g., `"myApp"`, `"myApp:sessions"`)                               |
+| `secret`           | string                                                          | Yes      | 32-byte (ASCII) encryption secret. Use `SecretValidator.generate()`.                             |
+| `redis`            | RedisOptions \| { url: string } \| { client: Redis \| Cluster } | Yes      | Redis connection config or existing client                                                       |
+| `allowWeakSecrets` | boolean                                                         | No       | Bypass secret strength validation (default: false)                                               |
+| `ttl`              | number                                                          | No       | Time-to-live in milliseconds for the backing Redis key, with sliding expiry (default: no expiry) |
 
 ### Key Expiry (TTL)
 
@@ -58,7 +58,7 @@ const store = new SecureStore({
 });
 ```
 
-Note that the TTL is refreshed only by *operations* — an idle store expires even if your process is still running. Size `ttl` as a generous backstop against orphaned data, not as a session timeout, and delete explicitly (see `deleteAll()`) when you know a store is no longer needed. When `ttl` is unset, keys never expire (the default, and the behavior of previous versions).
+Note that the TTL is refreshed only by _operations_ — an idle store expires even if your process is still running. Size `ttl` as a generous backstop against orphaned data, not as a session timeout, and delete explicitly (see `deleteAll()`) when you know a store is no longer needed. When `ttl` is unset, keys never expire (the default, and the behavior of previous versions).
 
 ### Using an Existing Redis Client
 
@@ -223,9 +223,9 @@ const sessions = store.namespace("sessions");
 await users.save("data", "user-data");
 await sessions.save("data", "session-data");
 
-await users.get("data");    // "user-data"
+await users.get("data"); // "user-data"
 await sessions.get("data"); // "session-data"
-await store.get("data");    // null (root store is separate)
+await store.get("data"); // null (root store is separate)
 ```
 
 ## SecretValidator
@@ -272,11 +272,11 @@ try {
 }
 ```
 
-| Error Class       | Code                 | When Thrown                          |
-| ----------------- | -------------------- | ------------------------------------ |
-| `ConnectionError` | `CONNECTION_ERROR`   | Redis connection failures            |
-| `EncryptionError` | `ENCRYPTION_ERROR`   | Encryption/decryption failures       |
-| `ValidationError` | `VALIDATION_ERROR`   | Invalid configuration, keys, or data |
+| Error Class       | Code               | When Thrown                          |
+| ----------------- | ------------------ | ------------------------------------ |
+| `ConnectionError` | `CONNECTION_ERROR` | Redis connection failures            |
+| `EncryptionError` | `ENCRYPTION_ERROR` | Encryption/decryption failures       |
+| `ValidationError` | `VALIDATION_ERROR` | Invalid configuration, keys, or data |
 
 ## Security Best Practices
 
@@ -296,13 +296,13 @@ Re-saving does not retire old ciphertext: while the legacy fallback exists, anyo
 
 ### Breaking Changes
 
-| Change               | Migration                                  |
-| -------------------- | ------------------------------------------ |
-| `uid` required       | Add explicit `uid` to constructor          |
+| Change               | Migration                                            |
+| -------------------- | ---------------------------------------------------- |
+| `uid` required       | Add explicit `uid` to constructor                    |
 | `secret` required    | Use `SecretValidator.generate()` or provide your own |
-| `connect()` required | Call `await store.connect()` before use    |
-| AES-256-GCM          | Re-encrypt existing data (format changed)  |
-| Secret validation    | Use strong secrets or set `allowWeakSecrets: true` |
+| `connect()` required | Call `await store.connect()` before use              |
+| AES-256-GCM          | Re-encrypt existing data (format changed)            |
+| Secret validation    | Use strong secrets or set `allowWeakSecrets: true`   |
 
 ### Example
 
