@@ -1,5 +1,6 @@
 import { expect, test, describe, afterAll, beforeAll } from "./test-compat.ts";
 import { createCipheriv, createHash, randomBytes } from "node:crypto";
+import { createServer } from "node:net";
 import { Redis } from "ioredis";
 
 import SecureStore, { SecretValidator } from "./index.ts";
@@ -144,6 +145,176 @@ describe("SecureStore", () => {
                     });
                 }).toThrow("32 bytes");
             }
+        });
+    });
+
+    describe("Redis URL", () => {
+        // Loopback server that records what a client sends, then drops
+        // the connection so connect() rejects promptly. Keeps reading
+        // briefly after the first bytes in case a command spans packets.
+        async function captureFirstChunk() {
+            let chunk = Buffer.alloc(0);
+            const server = createServer((socket) => {
+                socket.on("data", (data) => {
+                    if (chunk.length === 0) {
+                        setTimeout(() => socket.destroy(), 50);
+                    }
+                    chunk = Buffer.concat([chunk, data]);
+                });
+            });
+            await new Promise<void>((resolve) =>
+                server.listen(0, "127.0.0.1", resolve),
+            );
+            const { port } = server.address() as { port: number };
+            return {
+                port,
+                chunk: () => chunk,
+                close: () =>
+                    new Promise<void>((resolve) =>
+                        server.close(() => resolve()),
+                    ),
+            };
+        }
+
+        test("rediss:// connects with TLS", async () => {
+            const server = await captureFirstChunk();
+            const ss = new SecureStore({
+                uid: "test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: { url: `rediss://127.0.0.1:${server.port}` },
+            });
+            try {
+                await expect(ss.connect()).rejects.toThrow(
+                    "Failed to connect",
+                );
+            } finally {
+                await server.close();
+            }
+            // A TLS ClientHello starts with handshake record type 0x16
+            expect(server.chunk()[0]).toEqual(0x16);
+        });
+
+        test("rediss:// URLs that lose TLS are rejected, not downgraded", async () => {
+            // ioredis drops TLS for an empty ?tls= param or a
+            // non-lowercase scheme; neither may reach the wire.
+            for (const url of [
+                "rediss://HOST?tls=",
+                "REDISS://HOST",
+                "Rediss://HOST",
+            ]) {
+                const server = await captureFirstChunk();
+                const ss = new SecureStore({
+                    uid: "test",
+                    secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                    redis: {
+                        url: url.replace("HOST", `127.0.0.1:${server.port}`),
+                    },
+                });
+                try {
+                    await expect(ss.connect()).rejects.toThrow("non-TLS");
+                } finally {
+                    await server.close();
+                }
+                expect(server.chunk().length).toEqual(0);
+            }
+        });
+
+        test("URLs with whitespace or control characters are rejected", async () => {
+            // WHATWG parsing strips these, so "redi\tss://" would read as
+            // rediss: downstream while dodging the TLS guard.
+            for (const url of [
+                "\trediss://127.0.0.1:6379",
+                "redi\tss://127.0.0.1:6379",
+                "rediss://127.0.0.1:6379\n",
+            ]) {
+                const ss = new SecureStore({
+                    uid: "test",
+                    secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                    redis: { url },
+                });
+                await expect(ss.connect()).rejects.toThrow(
+                    "whitespace or control",
+                );
+            }
+        });
+
+        test("sentinels query option is rejected", async () => {
+            const ss = new SecureStore({
+                uid: "test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: { url: "rediss://127.0.0.1:9?sentinels=x&name=m" },
+            });
+            await expect(ss.connect()).rejects.toThrow("Sentinel");
+        });
+
+        test("sentinels in RedisOptions is not rejected by the URL guard", async () => {
+            // No Sentinel is running, so connect() fails, but it must fail
+            // on connection, not on validation.
+            const ss = new SecureStore({
+                uid: "test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: {
+                    sentinels: [{ host: "127.0.0.1", port: 9 }],
+                    name: "mymaster",
+                    maxRetriesPerRequest: 0,
+                    sentinelRetryStrategy: () => null,
+                },
+            });
+            await expect(ss.connect()).rejects.toThrow("Failed to connect");
+        });
+
+        test("non-numeric database path is rejected", async () => {
+            const ss = new SecureStore({
+                uid: "test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: { url: "redis://127.0.0.1:6379/not-a-db" },
+            });
+            await expect(ss.connect()).rejects.toThrow("database number");
+        });
+
+        test("URL query options reach ioredis", async () => {
+            const uid = `url-db-test-${randomBytes(8).toString("hex")}`;
+            const ss = new SecureStore({
+                uid,
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: { url: `redis://127.0.0.1:6379?db=1` },
+            });
+            const db0 = new Redis({ host: "127.0.0.1", port: 6379 });
+            const db1 = new Redis({ host: "127.0.0.1", port: 6379 });
+            try {
+                await db1.select(1);
+                await ss.connect();
+                await ss.save("foo", "bar");
+                expect(await db0.exists(uid)).toEqual(0);
+                expect(await db1.exists(uid)).toEqual(1);
+            } finally {
+                await db1.del(uid);
+                await db0.quit();
+                await db1.quit();
+                await ss.disconnect();
+            }
+        });
+
+        test("percent-encoded credentials are decoded before AUTH", async () => {
+            const server = await captureFirstChunk();
+            const ss = new SecureStore({
+                uid: "test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: {
+                    url: `redis://user:p%40ss%2Fword@127.0.0.1:${server.port}`,
+                },
+            });
+            try {
+                await expect(ss.connect()).rejects.toThrow(
+                    "Failed to connect",
+                );
+            } finally {
+                await server.close();
+            }
+            const sent = server.chunk().toString();
+            // RESP2 sends "auth", RESP3 (ioredis 6) sends "HELLO 3 AUTH"
+            expect(sent.toLowerCase()).toContain("auth");
+            expect(sent).toContain("p@ss/word");
         });
     });
 

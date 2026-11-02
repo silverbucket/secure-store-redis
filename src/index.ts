@@ -380,36 +380,55 @@ export default class SecureStore {
         // Create internal client
         if (!this.client) {
             return new Promise((resolve, reject) => {
-                let redisConfig: RedisOptions = {};
-
-                // Compatibility: convert node-redis style { url: "..." } to ioredis format
-                if (
-                    this.config.redis &&
-                    "url" in this.config.redis &&
-                    typeof this.config.redis.url === "string"
-                ) {
-                    const url = new URL(this.config.redis.url);
-                    redisConfig = {
-                        host: url.hostname,
-                        port: url.port ? Number.parseInt(url.port, 10) : 6379,
-                        username: url.username || undefined,
-                        password: url.password || undefined,
-                        db:
-                            url.pathname.length > 1
-                                ? Number.parseInt(url.pathname.slice(1), 10)
-                                : 0,
-                    };
-                } else if (
-                    this.config.redis &&
-                    !("client" in this.config.redis)
-                ) {
-                    redisConfig = this.config.redis as RedisOptions;
+                const url =
+                    "url" in this.config.redis
+                        ? this.config.redis.url
+                        : undefined;
+                // WHATWG URL parsing strips tabs and newlines, so a scheme
+                // like "redi\tss://" could dodge the TLS guard below.
+                if (url !== undefined && /[\s\p{Cc}]/u.test(url)) {
+                    throw new ValidationError(
+                        "Redis URL must not contain whitespace or control characters",
+                    );
                 }
-
-                const client = new Redis({
-                    ...redisConfig,
-                    lazyConnect: true,
-                });
+                // ioredis parses the URL itself: rediss:// enables TLS,
+                // credentials are percent-decoded, query params are honoured.
+                const client =
+                    url !== undefined
+                        ? new Redis(url, { lazyConnect: true })
+                        : new Redis({
+                              ...(this.config.redis as RedisOptions),
+                              lazyConnect: true,
+                          });
+                // URL-only guards against ioredis parsing quirks. Options
+                // passed as RedisOptions are the caller's explicit choice.
+                if (url !== undefined) {
+                    // ioredis only enables TLS for a lowercase "rediss://"
+                    // and lets "?tls=" override it; refuse a rediss URL that
+                    // ended up without TLS.
+                    if (/^rediss:\/\//i.test(url) && !client.options.tls) {
+                        client.disconnect();
+                        throw new ConnectionError(
+                            "rediss:// URL resolved to a non-TLS client; remove the tls query parameter",
+                        );
+                    }
+                    // Any non-empty "?sentinels=" selects Sentinel mode,
+                    // where tls does not cover the master connection.
+                    if (client.options.sentinels) {
+                        client.disconnect();
+                        throw new ValidationError(
+                            "Sentinel cannot be configured through a URL; pass RedisOptions instead",
+                        );
+                    }
+                    // A non-numeric path becomes db NaN and ioredis then
+                    // silently skips SELECT, landing on db 0.
+                    if (Number.isNaN(client.options.db)) {
+                        client.disconnect();
+                        throw new ValidationError(
+                            "Redis URL path must be a database number",
+                        );
+                    }
+                }
 
                 client.on("error", (err: Error) => {
                     log("Redis connection error", err);
