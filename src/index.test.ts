@@ -192,9 +192,14 @@ describe("SecureStore", () => {
         });
 
         test("rediss:// URLs that lose TLS are rejected, not downgraded", async () => {
-            // ioredis drops TLS for an empty ?tls= param and for a
-            // non-lowercase scheme; neither may reach the wire.
-            for (const url of ["rediss://HOST?tls=", "REDISS://HOST", "Rediss://HOST"]) {
+            // ioredis drops TLS for an empty ?tls= param, a non-lowercase
+            // scheme, or leading whitespace; none may reach the wire.
+            for (const url of [
+                "rediss://HOST?tls=",
+                "REDISS://HOST",
+                "Rediss://HOST",
+                "\trediss://HOST",
+            ]) {
                 const server = await captureFirstChunk();
                 const ss = new SecureStore({
                     uid: "test",

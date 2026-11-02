@@ -396,7 +396,7 @@ export default class SecureStore {
                 // rediss URL that ended up without TLS.
                 if (
                     "url" in this.config.redis &&
-                    /^rediss:\/\//i.test(this.config.redis.url) &&
+                    /^\s*rediss:\/\//i.test(this.config.redis.url) &&
                     !client.options.tls
                 ) {
                     client.disconnect();
