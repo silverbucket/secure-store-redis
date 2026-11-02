@@ -149,14 +149,17 @@ describe("SecureStore", () => {
     });
 
     describe("Redis URL", () => {
-        // Loopback server that records the first bytes a client sends,
-        // then drops the connection so connect() rejects promptly.
+        // Loopback server that records what a client sends, then drops
+        // the connection so connect() rejects promptly. Keeps reading
+        // briefly after the first bytes in case a command spans packets.
         async function captureFirstChunk() {
             let chunk = Buffer.alloc(0);
             const server = createServer((socket) => {
-                socket.once("data", (data) => {
-                    chunk = data;
-                    socket.destroy();
+                socket.on("data", (data) => {
+                    if (chunk.length === 0) {
+                        setTimeout(() => socket.destroy(), 50);
+                    }
+                    chunk = Buffer.concat([chunk, data]);
                 });
             });
             await new Promise<void>((resolve) =>
@@ -224,6 +227,24 @@ describe("SecureStore", () => {
                 redis: { url: "redis://127.0.0.1:6379/not-a-db" },
             });
             await expect(ss.connect()).rejects.toThrow("database number");
+        });
+
+        test("URL query options reach ioredis", async () => {
+            const ss = new SecureStore({
+                uid: "url-db-test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: { url: "redis://127.0.0.1:6379?db=1" },
+            });
+            const db1 = new Redis({ host: "127.0.0.1", port: 6379, db: 1 });
+            try {
+                await ss.connect();
+                await ss.save("foo", "bar");
+                expect(await db1.exists("url-db-test")).toEqual(1);
+            } finally {
+                await db1.del("url-db-test");
+                await db1.quit();
+                await ss.disconnect();
+            }
         });
 
         test("percent-encoded credentials are decoded before AUTH", async () => {
