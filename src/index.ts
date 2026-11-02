@@ -380,12 +380,13 @@ export default class SecureStore {
         // Create internal client
         if (!this.client) {
             return new Promise((resolve, reject) => {
+                const url =
+                    "url" in this.config.redis
+                        ? this.config.redis.url
+                        : undefined;
                 // WHATWG URL parsing strips tabs and newlines, so a scheme
                 // like "redi\tss://" could dodge the TLS guard below.
-                if (
-                    "url" in this.config.redis &&
-                    /[\s\p{Cc}]/u.test(this.config.redis.url)
-                ) {
+                if (url !== undefined && /[\s\p{Cc}]/u.test(url)) {
                     throw new ValidationError(
                         "Redis URL must not contain whitespace or control characters",
                     );
@@ -393,44 +394,40 @@ export default class SecureStore {
                 // ioredis parses the URL itself: rediss:// enables TLS,
                 // credentials are percent-decoded, query params are honoured.
                 const client =
-                    "url" in this.config.redis
-                        ? new Redis(this.config.redis.url, {
-                              lazyConnect: true,
-                          })
+                    url !== undefined
+                        ? new Redis(url, { lazyConnect: true })
                         : new Redis({
                               ...(this.config.redis as RedisOptions),
                               lazyConnect: true,
                           });
-                // ioredis only enables TLS for a lowercase "rediss://" and
-                // lets a "?tls=" query param override it; refuse any
-                // rediss URL that ended up without TLS.
-                if (
-                    "url" in this.config.redis &&
-                    /^rediss:\/\//i.test(this.config.redis.url) &&
-                    !client.options.tls
-                ) {
-                    client.disconnect();
-                    throw new ConnectionError(
-                        "rediss:// URL resolved to a non-TLS client; remove the tls query parameter",
-                    );
-                }
-
-                // Any non-empty "?sentinels=" selects Sentinel mode, where
-                // tls does not cover the master connection; URLs cannot
-                // express a usable Sentinel config anyway.
-                if (client.options.sentinels) {
-                    client.disconnect();
-                    throw new ValidationError(
-                        "Sentinel cannot be configured through a URL; pass RedisOptions instead",
-                    );
-                }
-                // ioredis turns a non-numeric URL path into db NaN and
-                // then silently skips SELECT, landing on db 0.
-                if (Number.isNaN(client.options.db)) {
-                    client.disconnect();
-                    throw new ValidationError(
-                        "Redis URL path must be a database number",
-                    );
+                // URL-only guards against ioredis parsing quirks. Options
+                // passed as RedisOptions are the caller's explicit choice.
+                if (url !== undefined) {
+                    // ioredis only enables TLS for a lowercase "rediss://"
+                    // and lets "?tls=" override it; refuse a rediss URL that
+                    // ended up without TLS.
+                    if (/^rediss:\/\//i.test(url) && !client.options.tls) {
+                        client.disconnect();
+                        throw new ConnectionError(
+                            "rediss:// URL resolved to a non-TLS client; remove the tls query parameter",
+                        );
+                    }
+                    // Any non-empty "?sentinels=" selects Sentinel mode,
+                    // where tls does not cover the master connection.
+                    if (client.options.sentinels) {
+                        client.disconnect();
+                        throw new ValidationError(
+                            "Sentinel cannot be configured through a URL; pass RedisOptions instead",
+                        );
+                    }
+                    // A non-numeric path becomes db NaN and ioredis then
+                    // silently skips SELECT, landing on db 0.
+                    if (Number.isNaN(client.options.db)) {
+                        client.disconnect();
+                        throw new ValidationError(
+                            "Redis URL path must be a database number",
+                        );
+                    }
                 }
 
                 client.on("error", (err: Error) => {

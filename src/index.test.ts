@@ -247,6 +247,22 @@ describe("SecureStore", () => {
             await expect(ss.connect()).rejects.toThrow("Sentinel");
         });
 
+        test("sentinels in RedisOptions is not rejected by the URL guard", async () => {
+            // No Sentinel is running, so connect() fails, but it must fail
+            // on connection, not on validation.
+            const ss = new SecureStore({
+                uid: "test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: {
+                    sentinels: [{ host: "127.0.0.1", port: 9 }],
+                    name: "mymaster",
+                    maxRetriesPerRequest: 0,
+                    sentinelRetryStrategy: () => null,
+                },
+            });
+            await expect(ss.connect()).rejects.toThrow("Failed to connect");
+        });
+
         test("non-numeric database path is rejected", async () => {
             const ss = new SecureStore({
                 uid: "test",
