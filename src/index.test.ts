@@ -238,6 +238,15 @@ describe("SecureStore", () => {
             }
         });
 
+        test("sentinels query option is rejected", async () => {
+            const ss = new SecureStore({
+                uid: "test",
+                secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                redis: { url: "rediss://127.0.0.1:9?sentinels=x&name=m" },
+            });
+            await expect(ss.connect()).rejects.toThrow("Sentinel");
+        });
+
         test("non-numeric database path is rejected", async () => {
             const ss = new SecureStore({
                 uid: "test",

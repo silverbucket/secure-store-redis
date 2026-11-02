@@ -415,6 +415,15 @@ export default class SecureStore {
                     );
                 }
 
+                // Any non-empty "?sentinels=" selects Sentinel mode, where
+                // tls does not cover the master connection; URLs cannot
+                // express a usable Sentinel config anyway.
+                if (client.options.sentinels) {
+                    client.disconnect();
+                    throw new ValidationError(
+                        "Sentinel cannot be configured through a URL; pass RedisOptions instead",
+                    );
+                }
                 // ioredis turns a non-numeric URL path into db NaN and
                 // then silently skips SELECT, landing on db 0.
                 if (Number.isNaN(client.options.db)) {
