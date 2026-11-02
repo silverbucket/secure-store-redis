@@ -247,6 +247,22 @@ describe("SecureStore", () => {
             await expect(ss.connect()).rejects.toThrow("Sentinel");
         });
 
+        test("lazyConnect query option is rejected before connecting", async () => {
+            // Sentinel mode would send sentinelPassword before the
+            // post-construction guards run, so this must reject first.
+            for (const url of [
+                "rediss://127.0.0.1:9?sentinels=x&name=m&lazyConnect=",
+                "redis://127.0.0.1:9?lazy%43onnect=",
+            ]) {
+                const ss = new SecureStore({
+                    uid: "test",
+                    secret: "823HD8DG26JA0LK1239Hgb651TWfs0j1",
+                    redis: { url },
+                });
+                await expect(ss.connect()).rejects.toThrow("lazyConnect");
+            }
+        });
+
         test("sentinels in RedisOptions is not rejected by the URL guard", async () => {
             // No Sentinel is running, so connect() fails, but it must fail
             // on connection, not on validation.
